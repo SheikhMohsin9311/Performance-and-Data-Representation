@@ -31,3 +31,9 @@ rb_tree: rb_tree.cpp
 
 clean:
 	rm -f $(TARGETS)
+	
+run: all
+	@for target in $(TARGETS); do \
+		echo "\n=== Running $$target ==="; \
+		./$$target; \
+	done
