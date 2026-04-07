@@ -1,135 +1,103 @@
 #!/bin/bash
-# runperf.sh — external perf stat sweep with ETA tracking.
-# Usage: bash runperf.sh [--dry-run]
-#   --dry-run  uses N=65536, REPEATS=3 for a quick sanity check.
 
-set -euo pipefail
+# 1. Initialize the built-in Bash timer
+SECONDS=0
 
-# ── Config ──────────────────────────────────────────────────────────────
-OUTPUT="scaling_results.csv"
-REPEATS=30
-SIZES=(262144 524288 1048576 2097152 4194304 8388608 16777216)
+OUTPUT="deep_scaling_results.csv"
 
-if [[ "${1:-}" == "--dry-run" ]]; then
-    echo "[DRY RUN] N=65536, repeats=3"
-    SIZES=(65536); REPEATS=3; OUTPUT="dry_run.csv"
-fi
+# ==========================================
+# CONFIGURATION: REPEAT COUNTS (THE DROWNING LOOP)
+# ==========================================
+# Change these numbers to whatever you want to test!
+RUNS_LARGE_DATA=10      # Used when N is 10,000,000 or more
+RUNS_MEDIUM_DATA=100    # Used when N is 1,000,000
+RUNS_SMALL_DATA=1000    # Used for N < 1,000,000
+# ==========================================
 
-EVENTS="cycles,ref-cycles,instructions,\
-L1-dcache-loads,L1-dcache-load-misses,\
-LLC-loads,LLC-load-misses,\
-dTLB-loads,dTLB-load-misses,\
-branches,branch-misses"
+# Request deep hardware events directly from the CPU
+EVENTS="cycles,instructions,cache-misses,branches,branch-misses,L1-dcache-load-misses,dTLB-load-misses"
 
+echo "data_structure,N,runs,cycles,instructions,ipc,cache_misses,branches,branch_misses,L1_misses,TLB_misses" > "$OUTPUT"
+
+# All 16 of your Data Structures!
 declare -a ENTRIES=(
-    "BST:second"           "SortedArray:third"      "LinkedList:linked_list"
-    "Heap:heap"            "HashMap:hash_map"        "Vector:vector_ds"
-    "Deque:deque_ds"       "RBTree:rb_tree"          "AoS:aos"
-    "SoA:soa"              "SkipList:skip_list"       "BTree:btree"
-    "VEBTree:veb_tree"     "Trie:trie"                "SlabList:slab_list"
-    "CircularBuffer:circular_buffer"
+    "third:Array"
+    "linked_list:LinkedList"
+    "aos:AoS"
+    "soa:SoA"
+    "second:BST"
+    "vector_ds:Vector"
+    "deque_ds:Deque"
+    "heap:Heap"
+    "hash_map:HashMap"
+    "rb_tree:RBTree"
+    "btree:BTree"
+    "circular_buffer:CircularBuffer"
+    "skip_list:SkipList"
+    "slab_list:SlabList"
+    "trie:Trie"
+    "veb_tree:vEBTree"
 )
 
-# ── Pre-flight ───────────────────────────────────────────────────────────
-paranoid=$(cat /proc/sys/kernel/perf_event_paranoid)
-if [ "$paranoid" -gt 1 ]; then
-    echo "ERROR: perf_event_paranoid=$paranoid. Run:"
-    echo "  sudo sysctl kernel.perf_event_paranoid=1"
-    exit 1
-fi
+SIZES=(1000 10000 100000 1000000 10000000)
 
-missing=0
 for entry in "${ENTRIES[@]}"; do
-    bin="${entry##*:}"
-    if [ ! -f "./$bin" ]; then echo "[MISSING] $bin"; missing=1; fi
-done
-[ "$missing" -eq 1 ] && echo "Run 'make' first." && exit 1
+    binary="${entry%%:*}"
+    label="${entry##*:}"
 
-# ── ETA bookkeeping ──────────────────────────────────────────────────────
-total_runs=$(( ${#ENTRIES[@]} * ${#SIZES[@]} ))
-runs_done=0
-start_epoch=$(date +%s)
-
-eta_str() {
-    local secs=$1
-    printf "%dm%02ds" $(( secs / 60 )) $(( secs % 60 ))
-}
-
-# ── CSV header ───────────────────────────────────────────────────────────
-echo "ds,N,\
-cycles,ref_cycles,instructions,\
-l1_loads,l1_misses,\
-llc_loads,llc_misses,\
-dtlb_loads,dtlb_misses,\
-branches,branch_misses,\
-ipc,cycles_per_elem,\
-l1_miss_pct,llc_miss_pct,dtlb_miss_pct,branch_miss_pct" > "$OUTPUT"
-
-# ── Parser ───────────────────────────────────────────────────────────────
-# parse_event RAW EVENT_KEYWORD → mean integer count (commas stripped)
-parse_event() {
-    echo "$1" | awk -v kw="$2" '
-    { for (i=1;i<=NF;i++) if($i==kw){ gsub(/,/,"",$1); print $1+0; exit } }'
-}
-
-# ── Main loop ────────────────────────────────────────────────────────────
-for entry in "${ENTRIES[@]}"; do
-    label="${entry%%:*}"; binary="${entry##*:}"
+    if [ ! -f "./$binary" ]; then
+        echo "Skipping $label (binary not found. Did you run 'make'?)"
+        continue
+    fi
 
     for N in "${SIZES[@]}"; do
-        # ── ETA ─────────────────────────────────────────────────────────
-        now=$(date +%s)
-        elapsed=$(( now - start_epoch ))
-        if [ "$runs_done" -gt 0 ]; then
-            avg=$(( elapsed / runs_done ))
-            remain=$(( total_runs - runs_done ))
-            eta=$(eta_str $(( avg * remain )))
+        
+        # Apply your custom repeat counts based on the size of N
+        if [ "$N" -ge 10000000 ]; then
+            RUNS=$RUNS_LARGE_DATA
+        elif [ "$N" -ge 1000000 ]; then
+            RUNS=$RUNS_MEDIUM_DATA
         else
-            eta="--:--"
+            RUNS=$RUNS_SMALL_DATA
         fi
-        pct=$(( runs_done * 100 / total_runs ))
 
-        printf "[%3d%%] %-18s N=%-10s ETA %-8s  " \
-               "$pct" "[$label]" "$N" "$eta"
+        echo -n "Running $label with N=$N (Runs=$RUNS) ... "
+        
+        # Run perf, capture raw CSV output. 
+        # -x ',' forces comma-separation. 
+        # > /dev/null silences the C++ program's standard output.
+        raw_perf=$(taskset -c 0 perf stat -x ',' -e "$EVENTS" "./$binary" "$N" "$RUNS" 2>&1 > /dev/null)
 
-        # ── perf stat ───────────────────────────────────────────────────
-        raw=$(taskset -c 0 perf stat -r "$REPEATS" -e "$EVENTS" \
-              "./$binary" "$N" 2>&1)
+        # Parse the specific metrics from the perf CSV output
+        cycles=$(echo "$raw_perf" | grep "cycles" | cut -d',' -f1)
+        instructions=$(echo "$raw_perf" | grep "instructions" | cut -d',' -f1)
+        cache_misses=$(echo "$raw_perf" | grep "cache-misses" | cut -d',' -f1)
+        branches=$(echo "$raw_perf" | grep "branches" | cut -d',' -f1)
+        branch_misses=$(echo "$raw_perf" | grep "branch-misses" | cut -d',' -f1)
+        l1_misses=$(echo "$raw_perf" | grep "L1-dcache-load-misses" | cut -d',' -f1)
+        tlb_misses=$(echo "$raw_perf" | grep "dTLB-load-misses" | cut -d',' -f1)
 
-        # Raw event means
-        cycles=$(parse_event     "$raw" "cycles")
-        ref_cyc=$(parse_event    "$raw" "ref-cycles")
-        instrs=$(parse_event     "$raw" "instructions")
-        l1_ld=$(parse_event      "$raw" "L1-dcache-loads")
-        l1_ms=$(parse_event      "$raw" "L1-dcache-load-misses")
-        llc_ld=$(parse_event     "$raw" "LLC-loads")
-        llc_ms=$(parse_event     "$raw" "LLC-load-misses")
-        dtlb_ld=$(parse_event    "$raw" "dTLB-loads")
-        dtlb_ms=$(parse_event    "$raw" "dTLB-load-misses")
-        branches=$(parse_event   "$raw" "branches")
-        br_ms=$(parse_event      "$raw" "branch-misses")
+        # Calculate IPC (and prevent division by zero)
+        if [ -z "$cycles" ] || [ "$cycles" -eq 0 ]; then
+            ipc="0.00"
+            echo -n "(Warning: 0 cycles detected) "
+        else
+            ipc=$(awk "BEGIN {printf \"%.2f\", $instructions / $cycles}")
+        fi
 
-        # Derived (safe div-by-zero throughout)
-        ipc=$(awk       "BEGIN { printf \"%.4f\", ($cycles  >0)?$instrs/$cycles    :0 }")
-        cpe=$(awk       "BEGIN { printf \"%.2f\",  ($N      >0)?$cycles/$N         :0 }")
-        l1p=$(awk       "BEGIN { printf \"%.3f\",  ($l1_ld  >0)?$l1_ms/$l1_ld*100 :0 }")
-        llcp=$(awk      "BEGIN { printf \"%.3f\",  ($llc_ld >0)?$llc_ms/$llc_ld*100:0 }")
-        dtlbp=$(awk     "BEGIN { printf \"%.3f\",  ($dtlb_ld>0)?$dtlb_ms/$dtlb_ld*100:0 }")
-        brp=$(awk       "BEGIN { printf \"%.3f\",  ($branches>0)?$br_ms/$branches*100:0 }")
-
-        echo "$label,$N,$cycles,$ref_cyc,$instrs,\
-$l1_ld,$l1_ms,$llc_ld,$llc_ms,$dtlb_ld,$dtlb_ms,$branches,$br_ms,\
-$ipc,$cpe,$l1p,$llcp,$dtlbp,$brp" >> "$OUTPUT"
-
-        echo "ipc=${ipc}  llc=${llcp}%  br=${brp}%"
-        runs_done=$(( runs_done + 1 ))
+        # Append to your final deep dive CSV
+        echo "$label,$N,$RUNS,$cycles,$instructions,$ipc,$cache_misses,$branches,$branch_misses,$l1_misses,$tlb_misses" >> "$OUTPUT"
+        echo "done"
     done
 done
 
-# ── Summary ──────────────────────────────────────────────────────────────
-total_elapsed=$(( $(date +%s) - start_epoch ))
+# 2. Calculate and format the total runtime
+duration=$SECONDS
+minutes=$((duration / 60))
+seconds=$((duration % 60))
+
 echo ""
-echo "=== Done in $(eta_str $total_elapsed) — $OUTPUT ==="
-echo "Rows: $(( $(wc -l < "$OUTPUT") - 1 )) data rows, 19 columns"
-echo ""
-column -t -s ',' "$OUTPUT"
+echo "=================================================="
+echo "Deep analysis ready in $OUTPUT!"
+echo "Total benchmark suite runtime: ${minutes}m ${seconds}s"
+echo "=================================================="
