@@ -1,23 +1,24 @@
-// std::set is implemented as a Red-Black Tree internally
-#include "perfutil.h"
 #include <iostream>
-#include <cstdlib>
 #include <set>
+#include <string>
 
-int main() {
-    const int N = 100000;
-    std::set<int> s;
+using namespace std;
 
-    srand(42);
-    for (int i = 0; i < N; i++) s.insert(rand());
+static inline int det(int i) { return (int)((unsigned)i * 2654435761u); }
+
+int main(int argc, char* argv[]) {
+    int N = (argc > 1) ? stoi(argv[1]) : 524288;
+    set<int> s;
+    for (int i = 0; i < N; i++) s.insert(det(i));
 
     // Warm up
-    volatile long long sum = 0;
-    for (int x : s) sum += x;
+    volatile long long sink = 0;
+    for (int x : s) sink += x;
 
-    // Measured run
-    sum = 0;
-    for (int x : s) sum += x;
+    // Measured
+    sink = 0;
+    for (int x : s) sink += x;
 
+    cout << sink << "\n";
     return 0;
 }

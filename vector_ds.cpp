@@ -1,23 +1,23 @@
-#include "perfutil.h"
 #include <iostream>
-#include <cstdlib>
 #include <vector>
+#include <string>
 
-int main() {
-    const int N = 100000;
-    std::vector<int> v;
+using namespace std;
+
+int main(int argc, char* argv[]) {
+    int N = (argc > 1) ? stoi(argv[1]) : 524288;
+    vector<int> v;
     v.reserve(N);
-
-    srand(42);
-    for (int i = 0; i < N; i++) v.push_back(rand());
+    for (int i = 0; i < N; i++) v.push_back(i);
 
     // Warm up
-    volatile long long sum = 0;
-    for (int x : v) sum += x;
+    volatile long long sink = 0;
+    for (int x : v) sink += x;
 
-    // Measured run
-    sum = 0;
-    for (int x : v) sum += x;
+    // Measured
+    sink = 0;
+    for (int x : v) sink += x;
 
+    cout << sink << "\n";
     return 0;
 }

@@ -1,7 +1,11 @@
-#include "perfutil.h"
 #include <iostream>
 #include <cstdlib>
-#include <ctime>
+#include <string>
+
+using namespace std;
+
+// Deterministic value: Knuth multiplicative hash, no PRNG state.
+static inline int det(int i) { return (int)((unsigned)i * 2654435761u); }
 
 struct Node {
     int data;
@@ -11,51 +15,40 @@ struct Node {
 
 Node* newNode(int val) {
     Node* n = new Node();
-    n->data = val;
-    n->left = nullptr;
-    n->right = nullptr;
+    n->data = val; n->left = nullptr; n->right = nullptr;
     return n;
 }
 
 Node* insert(Node* root, int val) {
     if (!root) return newNode(val);
-    if (val < root->data)
-        root->left = insert(root->left, val);
-    else
-        root->right = insert(root->right, val);
+    if (val < root->data) root->left  = insert(root->left,  val);
+    else                  root->right = insert(root->right, val);
     return root;
 }
 
-// Inorder traversal — touches every node once
+volatile long long sink = 0;
 void inorder(Node* root) {
     if (!root) return;
     inorder(root->left);
-    // volatile prevents the compiler from optimizing this away
-    volatile int x = root->data;
+    sink += root->data;
     inorder(root->right);
 }
 
 void freeTree(Node* root) {
     if (!root) return;
-    freeTree(root->left);
-    freeTree(root->right);
-    delete root;
+    freeTree(root->left); freeTree(root->right); delete root;
 }
 
-int main() {
-    const int N = 100000;
+int main(int argc, char* argv[]) {
+    int N = (argc > 1) ? stoi(argv[1]) : 524288;
     Node* root = nullptr;
+    for (int i = 0; i < N; i++) root = insert(root, det(i));
 
-    srand(42);
-    for (int i = 0; i < N; i++)
-        root = insert(root, rand());
+    inorder(root);  // warm up
+    sink = 0;
+    inorder(root);  // measured
 
-    // Warm up — first traversal brings tree into cache
-    inorder(root);
-
-    // This is the run perf will capture
-    inorder(root);
-
+    cout << sink << "\n";
     freeTree(root);
     return 0;
 }

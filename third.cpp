@@ -1,28 +1,23 @@
-#include "perfutil.h"
 #include <iostream>
-#include <cstdlib>
-#include <ctime>
-#include <algorithm>
+#include <string>
 
-int main() {
-    const int N = 100000;
-    int arr[N];
+using namespace std;
 
-    srand(42);
-    for (int i = 0; i < N; i++)
-        arr[i] = rand();
-
-    std::sort(arr, arr + N);
+// Sequential integers are already sorted — no rand, no sort().
+int main(int argc, char* argv[]) {
+    int N = (argc > 1) ? stoi(argv[1]) : 524288;
+    int* arr = new int[N];
+    for (int i = 0; i < N; i++) arr[i] = i;  // already sorted
 
     // Warm up
-    volatile long long sum = 0;
-    for (int i = 0; i < N; i++)
-        sum += arr[i];
+    volatile long long sink = 0;
+    for (int i = 0; i < N; i++) sink += arr[i];
 
-    // Measured run
-    sum = 0;
-    for (int i = 0; i < N; i++)
-        sum += arr[i];
+    // Measured
+    sink = 0;
+    for (int i = 0; i < N; i++) sink += arr[i];
 
+    cout << sink << "\n";
+    delete[] arr;
     return 0;
 }

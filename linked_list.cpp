@@ -1,39 +1,33 @@
-#include "perfutil.h"
 #include <iostream>
-#include <cstdlib>
+#include <string>
 
-struct Node {
-    int data;
-    Node* next;
-};
+using namespace std;
 
-int main() {
-    const int N = 100000;
+static inline int det(int i) { return (int)((unsigned)i * 2654435761u); }
+
+struct Node { int data; Node* next; };
+
+int main(int argc, char* argv[]) {
+    int N = (argc > 1) ? stoi(argv[1]) : 524288;
     Node* head = nullptr;
     Node* tail = nullptr;
 
-    srand(42);
     for (int i = 0; i < N; i++) {
         Node* n = new Node();
-        n->data = rand();
-        n->next = nullptr;
+        n->data = det(i); n->next = nullptr;
         if (!head) head = tail = n;
         else { tail->next = n; tail = n; }
     }
 
     // Warm up
-    volatile long long sum = 0;
-    Node* cur = head;
-    while (cur) { sum += cur->data; cur = cur->next; }
+    volatile long long sink = 0;
+    for (Node* c = head; c; c = c->next) sink += c->data;
 
-    // Measured run
-    sum = 0;
-    cur = head;
-    while (cur) { sum += cur->data; cur = cur->next; }
+    // Measured
+    sink = 0;
+    for (Node* c = head; c; c = c->next) sink += c->data;
 
-    // Free
-    cur = head;
-    while (cur) { Node* tmp = cur->next; delete cur; cur = tmp; }
-
+    cout << sink << "\n";
+    for (Node* c = head; c;) { Node* t = c->next; delete c; c = t; }
     return 0;
 }

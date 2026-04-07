@@ -1,38 +1,33 @@
-#include "perfutil.h"
 #include <iostream>
-#include <cstdlib>
 #include <algorithm>
+#include <string>
 
-// Array-based min-heap
+using namespace std;
+
+static inline int det(int i) { return (int)((unsigned)i * 2654435761u); }
+
 void heapifyDown(int* arr, int n, int i) {
-    int smallest = i;
-    int l = 2*i+1, r = 2*i+2;
-    if (l < n && arr[l] < arr[smallest]) smallest = l;
-    if (r < n && arr[r] < arr[smallest]) smallest = r;
-    if (smallest != i) {
-        std::swap(arr[i], arr[smallest]);
-        heapifyDown(arr, n, smallest);
-    }
+    int s = i, l = 2*i+1, r = 2*i+2;
+    if (l < n && arr[l] < arr[s]) s = l;
+    if (r < n && arr[r] < arr[s]) s = r;
+    if (s != i) { swap(arr[i], arr[s]); heapifyDown(arr, n, s); }
 }
 
-int main() {
-    const int N = 100000;
-    int arr[N];
+int main(int argc, char* argv[]) {
+    int N = (argc > 1) ? stoi(argv[1]) : 524288;
+    int* arr = new int[N];
+    for (int i = 0; i < N; i++) arr[i] = det(i);
+    for (int i = N/2 - 1; i >= 0; i--) heapifyDown(arr, N, i);
 
-    srand(42);
-    for (int i = 0; i < N; i++) arr[i] = rand();
+    // Warm up
+    volatile long long sink = 0;
+    for (int i = 0; i < N; i++) sink += arr[i];
 
-    // Build heap
-    for (int i = N/2 - 1; i >= 0; i--)
-        heapifyDown(arr, N, i);
+    // Measured
+    sink = 0;
+    for (int i = 0; i < N; i++) sink += arr[i];
 
-    // Warm up — traverse the underlying array
-    volatile long long sum = 0;
-    for (int i = 0; i < N; i++) sum += arr[i];
-
-    // Measured run
-    sum = 0;
-    for (int i = 0; i < N; i++) sum += arr[i];
-
+    cout << sink << "\n";
+    delete[] arr;
     return 0;
 }
