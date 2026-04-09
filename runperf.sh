@@ -3,15 +3,15 @@
 # 1. Initialize the built-in Bash timer
 SECONDS=0
 
-OUTPUT="deep_scaling_results.csv"
+OUTPUT="deep_scaling_results3.csv"
 
 # ==========================================
 # CONFIGURATION: REPEAT COUNTS (THE DROWNING LOOP)
 # ==========================================
 # Change these numbers to whatever you want to test!
-RUNS_LARGE_DATA=1000    # Used when N is 10,000,000 or more
-RUNS_MEDIUM_DATA=10000    # Used when N is 1,000,000
-RUNS_SMALL_DATA=1000000   # Used for N < 1,000,000 
+RUNS_LARGE_DATA=3   # Used when N is 10,000,000 or more
+RUNS_MEDIUM_DATA=30    # Used when N is 1,000,000
+RUNS_SMALL_DATA=300   # Used for N < 1,000,000 
 # ==========================================
 
 # Request deep hardware events directly from the CPU
