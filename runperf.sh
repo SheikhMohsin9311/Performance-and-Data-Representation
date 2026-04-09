@@ -9,9 +9,9 @@ OUTPUT="deep_scaling_results.csv"
 # CONFIGURATION: REPEAT COUNTS (THE DROWNING LOOP)
 # ==========================================
 # Change these numbers to whatever you want to test!
-RUNS_LARGE_DATA=10      # Used when N is 10,000,000 or more
-RUNS_MEDIUM_DATA=100    # Used when N is 1,000,000
-RUNS_SMALL_DATA=1000    # Used for N < 1,000,000
+RUNS_LARGE_DATA=1000    # Used when N is 10,000,000 or more
+RUNS_MEDIUM_DATA=10000    # Used when N is 1,000,000
+RUNS_SMALL_DATA=1000000   # Used for N < 1,000,000 
 # ==========================================
 
 # Request deep hardware events directly from the CPU
@@ -61,32 +61,31 @@ for entry in "${ENTRIES[@]}"; do
             RUNS=$RUNS_SMALL_DATA
         fi
 
-        echo -n "Running $label with N=$N (Runs=$RUNS) ... "
-        
         # Run perf, capture raw CSV output. 
         # -x ',' forces comma-separation. 
         # > /dev/null silences the C++ program's standard output.
         raw_perf=$(taskset -c 0 perf stat -x ',' -e "$EVENTS" "./$binary" "$N" "$RUNS" 2>&1 > /dev/null)
 
-        # Parse the specific metrics from the perf CSV output
-        cycles=$(echo "$raw_perf" | grep "cycles" | cut -d',' -f1)
-        instructions=$(echo "$raw_perf" | grep "instructions" | cut -d',' -f1)
-        cache_misses=$(echo "$raw_perf" | grep "cache-misses" | cut -d',' -f1)
-        branches=$(echo "$raw_perf" | grep "branches" | cut -d',' -f1)
-        branch_misses=$(echo "$raw_perf" | grep "branch-misses" | cut -d',' -f1)
-        l1_misses=$(echo "$raw_perf" | grep "L1-dcache-load-misses" | cut -d',' -f1)
-        tlb_misses=$(echo "$raw_perf" | grep "dTLB-load-misses" | cut -d',' -f1)
+        # Parse the specific metrics from the perf CSV output with awk for precision.
+        # This prevents newline bleeding and field contamination.
+        cycles=$(echo "$raw_perf" | awk -F',' '$3 == "cycles" { gsub(/ /,""); print $1 }')
+        instrs=$(echo "$raw_perf" | awk -F',' '$3 == "instructions" { gsub(/ /,""); print $1 }')
+        misses=$(echo "$raw_perf" | awk -F',' '$3 == "cache-misses" { gsub(/ /,""); print $1 }')
+        brnch=$(echo "$raw_perf" | awk -F',' '$3 == "branches" { gsub(/ /,""); print $1 }')
+        brms=$(echo "$raw_perf" | awk -F',' '$3 == "branch-misses" { gsub(/ /,""); print $1 }')
+        l1ms=$(echo "$raw_perf" | awk -F',' '$3 == "L1-dcache-load-misses" { gsub(/ /,""); print $1 }')
+        tlbms=$(echo "$raw_perf" | awk -F',' '$3 == "dTLB-load-misses" { gsub(/ /,""); print $1 }')
 
-        # Calculate IPC (and prevent division by zero)
-        if [ -z "$cycles" ] || [ "$cycles" -eq 0 ]; then
-            ipc="0.00"
-            echo -n "(Warning: 0 cycles detected) "
-        else
-            ipc=$(awk "BEGIN {printf \"%.2f\", $instructions / $cycles}")
-        fi
+        # Calculate IPC (force float division with awk)
+        ipc=$(awk "BEGIN { if (\"$cycles\" != \"\" && \"$cycles\" != \"0\") printf \"%.2f\", $instrs / $cycles; else print \"0.00\" }")
 
-        # Append to your final deep dive CSV
-        echo "$label,$N,$RUNS,$cycles,$instructions,$ipc,$cache_misses,$branches,$branch_misses,$l1_misses,$tlb_misses" >> "$OUTPUT"
+        # Ensure all variables are non-empty
+        cycles=${cycles:-0}; instrs=${instrs:-0}; misses=${misses:-0}
+        brnch=${brnch:-0}; brms=${brms:-0}; l1ms=${l1ms:-0}; tlbms=${tlbms:-0}
+
+        # Append to your final deep dive CSV (all values on ONE physical line)
+        printf "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" \
+               "$label" "$N" "$RUNS" "$cycles" "$instrs" "$ipc" "$misses" "$brnch" "$brms" "$l1ms" "$tlbms" >> "$OUTPUT"
         echo "done"
     done
 done
