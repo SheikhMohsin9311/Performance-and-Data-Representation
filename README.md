@@ -7,78 +7,105 @@ Modern CPUs are fast, but RAM is slow. If your data layout forces the CPU to wai
 
 ---
 
-## Quick Start
+## Technical Stack & Organization
+- **Core language**: C11
+- **Optimization**: `-O3 -march=native -flto`
+- **Isolation**: Workloads pinned to `CORE_ID=1` to avoid OS noise.
+- **Organization**: All compiled binaries are stored in the `./bin/` directory.
+
+---
+
+## 🛠️ Build System
+The project features a professional-grade `Makefile` with support for different build modes.
+
+### 1. Standard build (Release)
+Optimized for peak performance benchmarking.
+```bash
+make clean && make
+```
+### 2. Debug build
+Equipped with `-O0` and debug symbols for troubleshooting or profiling.
+```bash
+make MODE=debug
+```
+### 3. Cleanup
+```bash
+make clean
+```
+
+---
+
+## 🚀 Benchmarking Engine
+The `runperf.sh` script orchestrates the entire high-density suite.
+
 ### 1. Fix hardware permissions
-The Linux kernel restricts raw hardware counter access by default. You need to lower the paranoia level:
+The Linux kernel restricts raw hardware counter access by default. Lower the paranoia level:
 ```bash
 sudo sysctl -w kernel.perf_event_paranoid=-1
 ```
 
-### 2. Run the benchmarking engine
-The `runperf.sh` script orchestrates the entire suite. It pins execution to a single core to eliminate OS noise and sweeps through sizes from $10^3$ to $10^7$ with randomized jitter.
+### 2. Run the engine
+The engine sweeps through sizes from $10^3$ to $10^7$ with randomized jitter and pins to independent CPU cores.
 ```bash
 ./runperf.sh
 ```
-*Note: You can change `CORE_ID` at the top of the script if you want to pin to a different physical core.*
+
+---
+
+## 💎 High-Fidelity Measurement Architecture
+To capture raw hardware impact without noise, we use two advanced techniques:
+
+### 1. Internal Loop Instrumentation
+We no longer measure the *entire* process (which captures initialization noise). Instead, we use `perf_helper.h` to open raw hardware counters via `perf_event_open`.
+*   **Measurement Boundary**: We wrap ONLY the "Drowning Loop" in start/stop calls.
+*   **Isolated Scorecard**: We capture 7 simultaneous metrics (Cycles, IPC, L3 Misses, Branches, Branch Misses, L1 Misses, TLB Stalls) per measurement point.
+
+### 2. Memory Layout Randomization
+To defeat the "Allocator Bias" (where sequential `malloc` helps the prefetcher), we implement a **Memory Shake** for all pointer-based structures:
+*   Before measurement, we shuffle the node links to create true randomized pointer-chasing. 
+*   **Result**: Linked structure IPC drops from ~0.9 (legacy/polluted) to **~0.03** (realistic 'Memory Wall').
 
 ---
 
 ## The 16 Contenders: Hardware Deep-Dive
 
 ### Contiguous Power (Prefetcher Dominance)
-These structures are stored in sequential memory blocks. They maximize **Spatial Locality**.
-- **Array / Vector**: The gold standard. Data is perfectly packed. Every cache-line fetch (64 bytes) pulls in 16 integers. The **Hardware Prefetcher** detects the stride-1 pattern and fetches the next lines before the CPU even requests them. Result: **IPC > 2.0**.
-- **AoS (Array of Structs)**: Good locality if you need all fields of an object at once. However, if you only need one field, you waste cache bandwidth on "garbage" fields in the same line.
-- **SoA (Struct of Arrays)**: The "Data-Oriented Design" choice. Fields are separated into different arrays. This maximizes bandwidth for field-specific scans and is highly vectorized.
-- **Heap**: A binary tree flattened into an array index-logic. Despite the tree semantics, the memory is contiguous. It shares the same prefetcher benefits as the array.
-- **CircularBuffer**: Efficient contiguous queue. Minimizes allocation overhead and maintains spatial locality for producers and consumers.
+These structures maximize **Spatial Locality**.
+- **Array / Vector**: Perfectly packed. Result: **IPC > 2.0**.
+- **AoS / SoA**: Contrast between Object-Oriented and Data-Oriented designs.
+- **Heap**: Binary tree flattened into array logic for prefetcher friendliness.
+- **CircularBuffer**: Efficient contiguous queue with minimal allocation overhead.
 
 ### Pointer-Chasing (The Pipeline Killers)
-These structures scatter nodes across the heap. They suffer from **Dependency Chains**.
-- **LinkedList**: Every node is an individual heap allocation. To find node $i+1$, the CPU *must* wait for the `next` pointer of node $i$ to return from memory. This is a serial dependency that prevents out-of-order execution. Stalls are ~200 cycles per hop if the list exceeds $L3$ size.
-- **BST / RBTree**: Classic search trees. Beyond pointer chasing, these add the cost of **Branch Mispredictions**. Every node is a potential 15-cycle penalty if the branch predictor gets the `left/right` choice wrong.
-- **SkipList**: Probabilistic layering. Very heavy on memory because every node carries multiple pointers (4-8 on average), quickly exhausting cache capacity.
-- **SlabList**: A optimized linked list that allocates nodes in contiguous "slabs". This improves locality within the slab but still hits pointer-chasing stalls at slab boundaries.
-- **Trie**: Character-level prefixing. Extremely deep dependency chains. Small nodes are often padded by the allocator, wasting 50%+ of cache capacity on overhead.
+These structures scatter nodes, creating **Dependency Chains**.
+- **LinkedList**: Every hop costs cycles (~200 if list hits RAM).
+- **BST / RBTree**: Search trees suffering from **Branch Mispredictions**.
+- **SkipList**: Probabilistic layering with massive pointer overhead.
+- **SlabList**: Optimized list that improves locality via contiguous "slabs".
+- **Trie**: Deep dependency chains for prefix matching.
 
 ### Hybrid & Segmented Layouts
-- **Deque**: Elements in contiguous chunks (blocks) linked by a map. Excellent locality within a block (usually 128 items), but hits a cache miss when it jumps to the next heap-allocated block.
-- **HashMap**: Contiguous bucket array provides a good base, but "Separate Chaining" (linked lists for collisions) degrades performance toward $O(n)$ pointer-chasing as the load factor grows.
-- **BTree**: Designed for the memory hierarchy. High branching factor ($B=16+$) means one node fills exactly one or more cache lines. You stay on the same line longer before chasing the next pointer.
-- **vEBTree (van Emde Boas)**: A recursive, "cache-oblivious" layout. It maps a tree into an array such that subtrees occupy contiguous blocks. This keeps related nodes on the same cache line regardless of cache size.
+- **Deque**: Contiguous chunks linked by a map; hits stalls at chunk boundaries.
+- **HashMap**: Base contiguous array vs. "Separate Chaining" overhead.
+- **BTree**: Cache-line optimized trees with high branching factors ($B=16+$).
+- **vEBTree**: Recursive, cache-oblivious layout for optimal locality.
 
 ---
 
 ## The CSV Output: Metric Guide
-Every row in your results represents one benchmark point. Here is what the numbers actually mean:
-
-- **data_structure**: The name of the implementation being tested.
-- **N**: The number of elements in the structure ($10^3$ to $10^7$).
-- **runs**: The count of "Drowning Loop" iterations. We traverse the entire structure this many times to mask measurement overhead.
-- **cycles**: The absolute number of CPU clock cycles elapsed. This is your primary "time" metric.
-- **instructions**: Total "Retired Instructions". This is the actual work the CPU completed.
-- **ipc (Instructions Per Cycle)**: The efficiency of your pipeline. 
-    - **IPC > 1.5**: Your code is flying. The CPU is effectively parallelizing work.
-    - **IPC < 0.5**: Your CPU is mostly doing nothing, waiting on RAM.
-- **cache_misses**: Specifically **L3 Cache Misses**. These are the "expensive" misses that force the CPU to go all the way to Main Memory (DRAM), costing ~200+ cycles each.
-- **branches**: The number of conditional jumps executed (if/else, loops).
-- **branch_misses**: How many times the CPU's branch predictor guessed wrong. Each miss flushes the entire pipeline, costing ~15-20 cycles.
-- **L1_misses**: Misses in the fastest, smallest cache ($L1$). High L1 misses mean your "working set" is larger than ~32KB.
-- **TLB_misses**: Translation Lookaside Buffer misses. This happens when your data is spread across so many virtual memory pages that the CPU loses track of the physical addresses, forcing a "Page Table Walk".
+- **cycles**: Primary "time" metric (absolute clock cycles).
+- **ipc**: Efficiency of the pipeline (**IPC > 1.5** is flying; **IPC < 0.5** is stalling).
+- **cache_misses**: Specifically **L3 Cache Misses** (the 200+ cycle killers).
+- **branch_misses**: Penalties from the branch predictor guessing wrong.
+- **TLB_misses**: Stalls caused by virtual memory "Page Table Walks".
 
 ---
 
-## Benchmarking Engine
-The `runperf.sh` suite is designed for **High-Density Performance Analysis**:
-- **Dynamic Scaling**: We sweep from $10^3$ to $10^7$ with $\pm10\%$ jitter to ensure architectural transition points (L1 $\to$ L2 $\to$ L3 $\to$ RAM) are accurately captured.
-- **Drowning Loops**: Every benchmark wraps its traversal in a high-iteration loop to ensure the CPU hits steady-state frequency and the measurements aren't dominated by process startup noise.
-- **Hardware Metrics**: We track **Cycles**, **Instructions**, **IPC**, **Cache-Misses**, **Branch-Misses**, and **TLB-Stalls**.
-
 ## Analysis Pipeline
-Data is saved to timestamped CSVs (`deep_scaling_results_*.csv`). Use `analysis.ipynb` to visualize:
-- **Point Clouds**: See the performance "cloud" that reveals variance and hardware noise.
-- **Memory Wall Heatmaps**: Observe the exact point where cycles-per-element spikes as $N$ exceeds specific cache capacities.
-- **Stall Correlation**: Directly correlate L3 misses with IPC drops to prove where the CPU is waiting.
+Integrated data analysis using `analysis.ipynb`:
+- **Concurrency Guard**: The notebook automatically skips active CSV files being written to by the benchmark script.
+- **Universal Aggregation**: Aggregates all `*results*.csv` files, including legacy and multi-session data.
+- **Visualization**: Generates optimized point clouds, Memory Wall heatmaps, and stall correlation graphs.
 
 ---
 *Results vary by architecture. This suite has been validated on modern x86/ARM systems.*
