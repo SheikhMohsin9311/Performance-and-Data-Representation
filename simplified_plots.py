@@ -16,6 +16,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import matplotlib.patches as mpatches
+import matplotlib.patheffects as path_effects
 
 os.makedirs("slides", exist_ok=True)
 
@@ -23,17 +24,17 @@ os.makedirs("slides", exist_ok=True)
 plt.rcParams.update({
     "font.family":        "EB Garamond",
     "font.size":          16,
-    "axes.titlesize":     22,
-    "axes.labelsize":     18,
-    "xtick.labelsize":    14,
-    "ytick.labelsize":    14,
-    "legend.fontsize":    13,
+    "axes.titlesize":     24,
+    "axes.labelsize":     20,
+    "xtick.labelsize":    16,
+    "ytick.labelsize":    16,
+    "legend.fontsize":    14,
     "axes.facecolor":     "#0a0a0a",
     "figure.facecolor":   "#0a0a0a",
-    "axes.edgecolor":     "#444444",
-    "axes.labelcolor":    "#f8f8f8",
-    "xtick.color":        "#888888",
-    "ytick.color":        "#888888",
+    "axes.edgecolor":     "#555555",
+    "axes.labelcolor":    "#ffffff",
+    "xtick.color":        "#ffffff",
+    "ytick.color":        "#ffffff",
     "grid.color":         "#222222",
     "grid.alpha":         0.5,
     "grid.linestyle":     "-",
@@ -67,47 +68,59 @@ def family_of(ds):
         if ds in m: return f
     return "Other"
 
-# ── Load data ─────────────────────────────────────────────────────────────────
+# ── Load data (Strict: Version 2 only) ────────────────────────────────────────
 METRICS2_COLS = {"median_cycles","median_instructions","median_cache_misses",
                  "median_l1_misses","median_tlb_misses","cv_pct"}
 
-def _normalise(df):
-    cols = set(df.columns)
-    if METRICS2_COLS.issubset(cols):
-        return df
-    renames = {}
-    if "cycles"       in cols: renames["cycles"]       = "median_cycles"
-    if "instructions" in cols: renames["instructions"] = "median_instructions"
-    if "cache_misses" in cols: renames["cache_misses"] = "median_cache_misses"
-    if "L1_misses"    in cols: renames["L1_misses"]    = "median_l1_misses"
-    if "TLB_misses"   in cols: renames["TLB_misses"]   = "median_tlb_misses"
-    if "branch_misses"in cols: renames["branch_misses"]= "median_branch_misses"
-    return df.rename(columns=renames) if renames else None
+def _is_valid_metrics2(df):
+    """Ensure the file has the new-style statistical columns."""
+    return METRICS2_COLS.issubset(set(df.columns))
 
 frames = []
 for f in sorted(glob.glob("deep_scaling_results*.csv")):
+    # Skip files being actively written (checked via mtime vs current)
     if time.time() - os.path.getmtime(f) < 2: continue
     try:
         raw = pd.read_csv(f)
-        for c in raw.columns:
-            if c != "data_structure":
-                raw[c] = pd.to_numeric(raw[c], errors="coerce")
-        normed = _normalise(raw)
-        if normed is not None:
-            frames.append(normed)
+        if _is_valid_metrics2(raw):
+            frames.append(raw)
     except Exception: pass
 
+if not frames:
+    print("❌ Error: No valid METRICS2 data found. Run benchmarks first.")
+    exit(1)
+
 df = pd.concat(frames, ignore_index=True)
-df = df[df["median_cycles"] >= 50_000]
-if "cv_pct" in df.columns:
-    df = df[df["cv_pct"].isna() | (df["cv_pct"] <= 40)]
+
+# Data Quality Filters
+df = df[df["median_cycles"] >= 50_000] # Drop noise-only runs
+df = df[df["cv_pct"].isna() | (df["cv_pct"] <= 40)] # Drop jittery runs
 df["_cv"] = df["cv_pct"].fillna(100)
 df = (df.sort_values("_cv")
         .drop_duplicates(subset=["data_structure","N"])
         .drop(columns=["_cv"]).reset_index(drop=True))
+
+# Inferred Metrics
 df["cycles_per_n"]    = df["median_cycles"]    / df["N"]
 df["l1_misses_per_n"] = df["median_l1_misses"] / df["N"]
 df["family"]          = df["data_structure"].map(family_of)
+
+# ── Global Statistics for Presentation ───────────────────────────────────────
+total_data_points = len(df)
+total_structures  = df["data_structure"].nunique()
+max_n             = df["N"].max()
+min_n             = df["N"].min()
+# Estimate total workload processed (approx N * runs for all data points)
+# If runs isn't available, we fallback.
+total_elements = (df["N"] * df.get("runs", 1)).sum()
+
+with open("slides/stats_research.txt", "w") as f_out:
+    f_out.write(f"Datapoints: {total_data_points:,}\n")
+    f_out.write(f"Structures: {total_structures}\n")
+    f_out.write(f"N Range: {min_n:,} to {max_n:,}\n")
+    f_out.write(f"Processed: {total_elements/1e9:.1f} Billion Elements\n")
+
+print(f"✅ Loaded {len(df)} research-grade samples.")
 
 MAX_N = df["N"].max()
 print(f"Loaded {len(df)} rows, largest N = {MAX_N:,}")
@@ -127,10 +140,14 @@ bars = ax.barh(range(len(at_max)), at_max.values, color=bar_colors,
                edgecolor="white", linewidth=0.5, height=0.7)
 
 # Annotate value at end of each bar
+import matplotlib.patheffects as path_effects
+pe = [path_effects.withStroke(linewidth=2, foreground='#0a0a0a')]
+
 for i, (val, bar) in enumerate(zip(at_max.values, bars)):
     label = f"{val:.1f}" if val < 100 else f"{val:.0f}"
     ax.text(val + at_max.max() * 0.01, i, label + " cycles/elem",
-            va="center", fontsize=11, color="#444")
+            va="center", fontsize=15, fontweight="bold", color="#ffffff",
+            path_effects=pe)
 
 ax.set_yticks(range(len(at_max)))
 ax.set_yticklabels(at_max.index, fontsize=13)
@@ -228,7 +245,8 @@ for bar, val in zip(bar_objs, values):
     ax.text(bar.get_x() + bar.get_width() / 2,
             val + max(values) * 0.02,
             f"{val:.3f} misses/elem", ha="center", va="bottom",
-            fontsize=13, fontweight="bold")
+            fontsize=16, fontweight="bold", color='#ffffff',
+            path_effects=pe)
 
 # Ratio callout
 if mean_c > 0:
