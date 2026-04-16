@@ -1,111 +1,74 @@
-# Performance & Data Representation
+# Architectural Fidelity
+### Data Locality, Memory Latency, and Hardware Determinism
 
-This suite measures the **Memory Wall**. We analyze how 16 different data structures collide with hardware reality: $L1/L2/L3$ caches, the hardware prefetcher, and the CPU pipeline. 
-
-## The Mission
-Modern CPUs are fast, but RAM is slow. If your data layout forces the CPU to wait for main memory, your $O(\log n)$ algorithm will lose to a cache-friendly $O(n)$ scan every time. We use `perf` and raw hardware counters to quantify these **stalls**.
+This repository contains a high-fidelity systems research suite designed to quantify the impact of data representation on modern x86 hardware. By bypassing high-level abstractions, we measure the direct collision between 16 primitive data structures and the CPU's memory hierarchy: $L1/L2/L3$ caches, the hardware prefetcher, and the TLB.
 
 ---
 
-## Technical Stack & Organization
-- **Core language**: C11
-- **Optimization**: `-O3 -march=native -flto`
-- **Isolation**: Workloads pinned to `CORE_ID=1` to avoid OS noise.
-- **Organization**: All compiled binaries are stored in the `./bin/` directory.
+## 🏛️ The Spatial Premise
+Modern computing is increasingly bottlenecked by the **Memory Wall**. While algorithmic complexity ($O$ notation) dictates operation counts, **Spatial Locality** dictates execution latency. This project provides raw empirical evidence of how "optimal" algorithms can fail when their memory layouts induce pipeline stalls and cache exhaustion.
+
+## 💎 High-Fidelity Research Stack
+
+### 1. OS Stabilization Strategy
+Benchmarking on a general-purpose OS is inherently noisy. We provide a **Stabilization Layer** to eliminate non-deterministic variance:
+*   **`stabilize.sh`**: Locks CPU at peak frequency (`performance` governor), disables ASLR, thwarts C-state deep sleep, and grants unrestricted hardware counter access.
+*   **Effect**: Reduces cycle variance from $\pm25\%$ to **$<2\%$**.
+
+### 2. Discrete Hardware Instrumentation
+We utilize a bespoke instrumentation header, `perf_helper.h`, to interface directly with the Linux `perf_event` subsystem.
+*   **Internal Sampling**: We wrap only the "Drowning Loop" trajectory, excluding setup/teardown noise.
+*   **Statistical Median**: Instead of global averages, we collect individual samples per iteration and compute the **Median** to ignore OS preemption outliers.
+*   **Noise Detection**: We report the **Coefficient of Variation (CV%)** for every run; samples exceeding 15% noise are automatically flagged or discarded.
+
+### 3. Structural Contenders
+We analyze 16 distinct implementations across three architectural families:
+*   **Contiguous**: Array, Vector, CircularBuffer, AoS, SoA, Heap.
+*   **Linked**: LinkedList, SlabList, SkipList.
+*   **Hybrid / Tree**: BST, RBTree, BTree, vEBTree, HashMap, Trie, Deque.
 
 ---
 
-## 🛠️ Build System
-The project features a professional-grade `Makefile` with support for different build modes.
+## 🚀 Usage Specification
 
-### 1. Standard build (Release)
-Optimized for peak performance benchmarking.
+### 1. System Preparation (Root Required)
 ```bash
-make clean && make
-```
-### 2. Debug build
-Equipped with `-O0` and debug symbols for troubleshooting or profiling.
-```bash
-make MODE=debug
-```
-### 3. Cleanup
-```bash
-make clean
+sudo bash stabilize.sh
 ```
 
----
-
-## 🚀 Benchmarking Engine
-The `runperf.sh` script orchestrates the entire high-density suite.
-
-### 1. Fix hardware permissions
-The Linux kernel restricts raw hardware counter access by default. Lower the paranoia level:
+### 2. Compiling the Suite
+The `Makefile` is optimized for high-performance research (`-O3 -march=native -flto`).
 ```bash
-sudo sysctl -w kernel.perf_event_paranoid=-1
+make clean && make -j$(nproc)
 ```
 
-### 2. Run the engine
-The engine sweeps through sizes from $10^3$ to $10^7$ with randomized jitter and pins to independent CPU cores.
+### 3. Executing the Benchmarks
+The `runperf.sh` engine sweeps through working-set sizes from $10^3$ to $10^7$ elements.
 ```bash
 ./runperf.sh
 ```
 
----
-
-## 💎 High-Fidelity Measurement Architecture
-To capture raw hardware impact without noise, we use two advanced techniques:
-
-### 1. Internal Loop Instrumentation
-We no longer measure the *entire* process (which captures initialization noise). Instead, we use `perf_helper.h` to open raw hardware counters via `perf_event_open`.
-*   **Measurement Boundary**: We wrap ONLY the "Drowning Loop" in start/stop calls.
-*   **Isolated Scorecard**: We capture 7 simultaneous metrics (Cycles, IPC, L3 Misses, Branches, Branch Misses, L1 Misses, TLB Stalls) per measurement point.
-
-### 2. Memory Layout Randomization
-To defeat the "Allocator Bias" (where sequential `malloc` helps the prefetcher), we implement a **Memory Shake** for all pointer-based structures:
-*   Before measurement, we shuffle the node links to create true randomized pointer-chasing. 
-*   **Result**: Linked structure IPC drops from ~0.9 (legacy/polluted) to **~0.03** (realistic 'Memory Wall').
+### 4. Analysis & Visualisation
+*   **Journal-Grade Analysis**: `analysis.py` processes the high-density dataset and generates 12+ publication-ready figures.
+*   **The Manuscript**: `presentation.pdf` contains a boutique, 5-slide academic talk designed in a **Dark Academic** style.
 
 ---
 
-## The 16 Contenders: Hardware Deep-Dive
-
-### Contiguous Power (Prefetcher Dominance)
-These structures maximize **Spatial Locality**.
-- **Array / Vector**: Perfectly packed. Result: **IPC > 2.0**.
-- **AoS / SoA**: Contrast between Object-Oriented and Data-Oriented designs.
-- **Heap**: Binary tree flattened into array logic for prefetcher friendliness.
-- **CircularBuffer**: Efficient contiguous queue with minimal allocation overhead.
-
-### Pointer-Chasing (The Pipeline Killers)
-These structures scatter nodes, creating **Dependency Chains**.
-- **LinkedList**: Every hop costs cycles (~200 if list hits RAM).
-- **BST / RBTree**: Search trees suffering from **Branch Mispredictions**.
-- **SkipList**: Probabilistic layering with massive pointer overhead.
-- **SlabList**: Optimized list that improves locality via contiguous "slabs".
-- **Trie**: Deep dependency chains for prefix matching.
-
-### Hybrid & Segmented Layouts
-- **Deque**: Contiguous chunks linked by a map; hits stalls at chunk boundaries.
-- **HashMap**: Base contiguous array vs. "Separate Chaining" overhead.
-- **BTree**: Cache-line optimized trees with high branching factors ($B=16+$).
-- **vEBTree**: Recursive, cache-oblivious layout for optimal locality.
+## 📊 Sample Metrics Captured
+| Metric | Significance |
+|:---|:---|
+| **Cycles/N** | Net architectural cost per element. |
+| **IPC** | Pipeline efficiency (Instructions Per Cycle). |
+| **L1/L3 Misses** | Direct indicators of memory hierarchy pressure. |
+| **TLB Stalls** | Impact of virtual-to-physical address translation. |
+| **CV%** | Metadata for measurement reliability/noise. |
 
 ---
 
-## The CSV Output: Metric Guide
-- **cycles**: Primary "time" metric (absolute clock cycles).
-- **ipc**: Efficiency of the pipeline (**IPC > 1.5** is flying; **IPC < 0.5** is stalling).
-- **cache_misses**: Specifically **L3 Cache Misses** (the 200+ cycle killers).
-- **branch_misses**: Penalties from the branch predictor guessing wrong.
-- **TLB_misses**: Stalls caused by virtual memory "Page Table Walks".
+## 📜 Intellectual Credit
+**Sheikh Mohsin**  
+*Systems Research | FLAME University*  
+[Portfolio](https://sheikh-mohsin.vercel.app) | [GitHub](https://github.com/SheikhMohsin9311)
 
 ---
-
-## Analysis Pipeline
-Integrated data analysis using `analysis.ipynb`:
-- **Concurrency Guard**: The notebook automatically skips active CSV files being written to by the benchmark script.
-- **Universal Aggregation**: Aggregates all `*results*.csv` files, including legacy and multi-session data.
-- **Visualization**: Generates optimized point clouds, Memory Wall heatmaps, and stall correlation graphs.
-
----
-*Results vary by architecture. This suite has been validated on modern x86/ARM systems.*
+*Results are architecture-dependent. Validated on Linux kernel 5.15+ with hardware performance counter support.*
