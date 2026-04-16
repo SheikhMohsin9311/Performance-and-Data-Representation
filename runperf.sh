@@ -98,12 +98,38 @@ DECADES=(
     "10000000:100000000:330000" # step 330k => ~270 pts/ds
 )
 
-for DECADE in "${DECADES[@]}"; do
+# ==========================================
+# PAUSE/RESUME STATE MANAGEMENT
+# ==========================================
+STATE_FILE=".benchmark_state"
+RESUME_DECADE=0
+RESUME_BASE=0
+
+if [ -f "$STATE_FILE" ]; then
+    IFS=':' read -r RESUME_DECADE RESUME_BASE < "$STATE_FILE"
+    echo "Resuming from Decade Index $RESUME_DECADE, Base $RESUME_BASE"
+fi
+# ==========================================
+
+for (( d_idx=0; d_idx<${#DECADES[@]}; d_idx++ )); do
+    DECADE="${DECADES[$d_idx]}"
+    
+    # Skip completed decades
+    if [ "$d_idx" -lt "$RESUME_DECADE" ]; then
+        echo "Skipping already completed Decade $DECADE"
+        continue
+    fi
+
     IFS=':' read -r min max step <<< "$DECADE"
     echo "--- Scaling Range: $min to $max ---"
     
     for (( base=$min; base<$max; base+=$step )); do
-        # Randomize structure order slightly within each N-step for "true" mix
+        # Skip completed bases within the current decade
+        if [ "$d_idx" -eq "$RESUME_DECADE" ] && [ "$base" -lt "$RESUME_BASE" ]; then
+            continue
+        fi
+
+        # Randomize structure order slightly within each N-step
         SHUFFLED_ENTRIES=$(printf "%s\n" "${ENTRIES[@]}" | shuf)
         
         while IFS= read -r entry; do
@@ -155,7 +181,10 @@ for DECADE in "${DECADES[@]}"; do
             echo "$row" >> "$MASTER_ARCHIVE"
             
         done <<< "$SHUFFLED_ENTRIES"
-        printf "." # Progress tick per N-step across ALL structures
+        
+        # Save checkpoint after successful N-step
+        echo "$d_idx:$base" > "$STATE_FILE"
+        printf "." 
     done
     printf "\n"
 done
