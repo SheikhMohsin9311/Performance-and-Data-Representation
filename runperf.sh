@@ -1,5 +1,14 @@
 #!/bin/bash
 
+# =============================================================================
+# runperf.sh — High-fidelity benchmark runner
+# =============================================================================
+# Usage: bash runperf.sh
+# Prerequisites: run `sudo bash stabilize.sh` first for reproducible results.
+# =============================================================================
+
+set -euo pipefail
+
 # 1. Initialize the built-in Bash timer
 SECONDS=0
 
@@ -9,28 +18,47 @@ OUTPUT="deep_scaling_results_$(date +%s).csv"
 # ==========================================
 # CONFIGURATION: REPEAT COUNTS & CORE PINNING
 # ==========================================
-CORE_ID=1              # Pin all benchmarks to this CPU core
-BASE_RUNS_LARGE=3      # N >= 10M
-BASE_RUNS_MEDIUM=30    # N >= 1M
-BASE_RUNS_SMALL=300    # N < 1M
+CORE_ID=1               # Pin all benchmarks to this CPU core
+RUNS_LARGE=3            # N >= 10M
+RUNS_MEDIUM=20          # N >= 1M
+RUNS_SMALL=200          # N >= 100K
+RUNS_TINY=1000          # N < 100K — many reps to overcome os noise at tiny sizes
+# Rows where median_cycles < this will be flagged (unreliable measurement)
+MIN_CYCLES_WARN=50000
 # ==========================================
 
-# Request deep hardware events directly from the CPU
-# Note: We group critical counters {cycles,instructions,cache-misses} to avoid multiplexing
-EVENTS="{cycles,instructions,cache-misses},branches,branch-misses,L1-dcache-load-misses,dTLB-load-misses"
+# ── Pre-flight checks ─────────────────────────────────────────────────────────
+echo "=== Pre-flight Checks ==="
 
-# Only write header if file is new (though $(date +%s) is likely new)
-if [ ! -f "$OUTPUT" ]; then
-    echo "data_structure,N,runs,cycles,instructions,ipc,cache_misses,branches,branch_misses,L1_misses,TLB_misses" > "$OUTPUT"
+# Check CPU governor
+GOV=$(cat /sys/devices/system/cpu/cpu${CORE_ID}/cpufreq/scaling_governor 2>/dev/null || echo "unknown")
+if [ "$GOV" != "performance" ]; then
+    echo "  [WARNING] CPU governor is '${GOV}' (not 'performance')."
+    echo "            For reproducible results, run: sudo bash stabilize.sh"
 fi
 
-# All 16 of your Data Structures!
+# Check perf_event_paranoid
+PARANOID=$(cat /proc/sys/kernel/perf_event_paranoid 2>/dev/null || echo "unknown")
+if [ "$PARANOID" != "-1" ] && [ "$PARANOID" != "0" ]; then
+    echo "  [WARNING] perf_event_paranoid=${PARANOID} — hardware counters may be blocked."
+    echo "            For counter access, run: sudo bash stabilize.sh"
+fi
+
+echo "  Output file : $OUTPUT"
+echo "  CPU core    : $CORE_ID"
+echo "  RUNS (S/M/L): ${RUNS_SMALL}/${RUNS_MEDIUM}/${RUNS_LARGE}"
+echo "=========================="
+
+# Write CSV header
+echo "data_structure,N,runs,median_cycles,median_instructions,ipc,median_cache_misses,median_branches,median_branch_misses,median_l1_misses,median_tlb_misses,cv_pct" > "$OUTPUT"
+
+# All 16 Data Structures
 declare -a ENTRIES=(
-    "third:Array"
+    "array:Array"
     "linked_list:LinkedList"
     "aos:AoS"
     "soa:SoA"
-    "second:BST"
+    "bst:BST"
     "vector_ds:Vector"
     "deque_ds:Deque"
     "heap:Heap"
@@ -44,22 +72,17 @@ declare -a ENTRIES=(
     "veb_tree:vEBTree"
 )
 
-# REPLACED STATIC SIZES WITH DYNAMIC GENERATOR
-# We sweep from 10^3 to 10^7 with multiple steps per decade
-GENERATED_SIZES=()
-for exp in 3 4 5 6; do
-    for multiplier in 10 25 50 75; do
-        base=$(( multiplier * 10**(exp-1) ))
-        # Add random jitter: +/- 10% of the base
-        jitter=$(( RANDOM % (base / 5 + 1) - base / 10 ))
-        val=$(( base + jitter ))
-        [[ $val -lt 100 ]] && val=100
-        GENERATED_SIZES+=($val)
-    done
-done
-GENERATED_SIZES+=(10000000) # Ensure we hit the 10M cap
+# Fixed canonical sizes: 4 steps per decade from 10^3 to 10^7
+# (no jitter — identical workloads every run for reproducibility)
+SIZES=(
+    1000 2500 5000 7500
+    10000 25000 50000 75000
+    100000 250000 500000 750000
+    1000000 2500000 5000000 7500000
+    10000000
+)
 
-# 1. Verification: Ensure binaries are built
+# Verify binaries are present
 if [ ! -d "bin" ] || [ -z "$(ls -A bin 2>/dev/null)" ]; then
     echo "Error: bin/ directory is empty. Run 'make' first!"
     exit 1
@@ -74,57 +97,66 @@ for entry in "${ENTRIES[@]}"; do
         continue
     fi
 
-    echo "Benchmarking $label..."
-    for N in "${GENERATED_SIZES[@]}"; do
-        
-        # Apply custom repeat counts with random jitter to explore variance
+    echo -n "Benchmarking $label ... "
+    for N in "${SIZES[@]}"; do
+
+        # Deterministic RUNS based on N tier
         if [ "$N" -ge 10000000 ]; then
-            RUNS=$(( BASE_RUNS_LARGE + RANDOM % 3 - 1 )) 
+            RUNS=$RUNS_LARGE
         elif [ "$N" -ge 1000000 ]; then
-            RUNS=$(( BASE_RUNS_MEDIUM + RANDOM % 10 - 5 ))
+            RUNS=$RUNS_MEDIUM
+        elif [ "$N" -ge 100000 ]; then
+            RUNS=$RUNS_SMALL
         else
-            RUNS=$(( BASE_RUNS_SMALL + RANDOM % 60 - 30 ))
+            RUNS=$RUNS_TINY
         fi
-        [[ $RUNS -lt 1 ]] && RUNS=1
 
+        # Execute binary with crash detection
+        if ! exec_output=$(taskset -c $CORE_ID "./bin/$binary" "$N" "$RUNS" 2>&1); then
+            echo ""
+            echo "  [ERROR] $label crashed at N=$N — skipping"
+            continue
+        fi
 
-        # Execute binary and capture standard output
-        # Pinning is still handled by taskset for OS isolation
-        exec_output=$(taskset -c $CORE_ID "./bin/$binary" "$N" "$RUNS")
+        # Parse METRICS2 line: median_cycles,median_instructions,ipc,cache_misses,
+        #                       branches,branch_misses,l1_misses,tlb_misses,cv_pct
+        metrics_line=$(echo "$exec_output" | grep "^METRICS2" | tail -1)
+        if [ -z "$metrics_line" ]; then
+            echo ""
+            echo "  [WARNING] No METRICS2 output for $label at N=$N"
+            continue
+        fi
 
-        # Parse the METRICS line: METRICS,cycles,instructions,cache_misses,branches,branch_misses,l1,tlb
-        perf_data=$(echo "$exec_output" | grep "METRICS" | cut -d',' -f2-8)
-        
-        cycles=$(echo "$perf_data" | cut -d',' -f1)
-        instrs=$(echo "$perf_data" | cut -d',' -f2)
-        misses=$(echo "$perf_data" | cut -d',' -f3)
-        brnch=$(echo "$perf_data" | cut -d',' -f4)
-        brms=$(echo "$perf_data" | cut -d',' -f5)
-        l1ms=$(echo "$perf_data" | cut -d',' -f6)
-        tlbms=$(echo "$perf_data" | cut -d',' -f7)
+        # Strip "METRICS2," prefix
+        perf_data="${metrics_line#METRICS2,}"
 
-        # Ensure all variables are non-empty before math
-        cycles=${cycles:-0}; instrs=${instrs:-0}; misses=${misses:-0}
-        brnch=${brnch:-0}; brms=${brms:-0}; l1ms=${l1ms:-0}; tlbms=${tlbms:-0}
+        IFS=',' read -r med_cyc med_ins ipc med_cm med_br med_brm med_l1 med_tlb cv_pct <<< "$perf_data"
 
-        # Calculate IPC safely
-        ipc=$(awk -v ins="$instrs" -v cyc="$cycles" 'BEGIN { if (cyc != "" && cyc != "0") printf "%.2f", ins / cyc; else print "0.00" }')
+        # Warn if the measurement is too short to be meaningful
+        if [ "${med_cyc:-0}" -lt "$MIN_CYCLES_WARN" ] 2>/dev/null; then
+            echo ""
+            echo "  [NOISE] $label N=$N: only ${med_cyc} median cycles — cv_pct unreliable (increase RUNS_TINY)"
+        fi
 
-        # Append to your final deep dive CSV
-        printf "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" \
-               "$label" "$N" "$RUNS" "$cycles" "$instrs" "$ipc" "$misses" "$brnch" "$brms" "$l1ms" "$tlbms" >> "$OUTPUT"
-        echo " done"
-        sleep 0.1 # Steady-state delay
+        printf "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" \
+            "$label" "$N" "$RUNS" \
+            "${med_cyc:-0}" "${med_ins:-0}" "${ipc:-0.00}" \
+            "${med_cm:-0}"  "${med_br:-0}"  "${med_brm:-0}" \
+            "${med_l1:-0}"  "${med_tlb:-0}" "${cv_pct:-0.0}" >> "$OUTPUT"
+
+        echo -n "."
     done
+    echo " done"
+    sleep 1  # Thermal cooldown between structures
 done
 
-# 2. Calculate and format the total runtime
+# Summary
 duration=$SECONDS
 minutes=$((duration / 60))
 seconds=$((duration % 60))
 
 echo ""
 echo "=================================================="
-echo "High-density analysis ready in $OUTPUT!"
-echo "Total benchmark suite runtime: ${minutes}m ${seconds}s"
+echo "Results written to: $OUTPUT"
+echo "Total runtime: ${minutes}m ${seconds}s"
 echo "=================================================="

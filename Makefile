@@ -20,7 +20,7 @@ else
 endif
 
 # ── Targets ───────────────────────────────────────────────────────────────────
-TARGETS = second third linked_list heap hash_map vector_ds deque_ds rb_tree \
+TARGETS = bst array linked_list heap hash_map vector_ds deque_ds rb_tree \
           aos soa skip_list btree veb_tree trie slab_list circular_buffer
 
 # Prefix targets with the binary directory
@@ -40,7 +40,7 @@ all: $(BINS)
 	@echo "$(GREEN)Build Completed successfully!$(RESET)"
 
 # Compile rule: .c -> bin/binary
-$(BIN_DIR)/%: %.c | $(BIN_DIR)
+$(BIN_DIR)/%: %.c perf_helper.h | $(BIN_DIR)
 	@echo "$(CYAN)  Compiling$(RESET) $< -> $@"
 	@$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
 
@@ -50,6 +50,14 @@ $(BIN_DIR):
 clean:
 	@echo "$(BLUE)Cleaning up...$(RESET)"
 	@rm -rf $(BIN_DIR)
+
+check: all
+	@echo "$(CYAN)Running smoke tests...$(RESET)"
+	@for bin in $(BINS); do \
+		echo "Testing $$bin..."; \
+		$$bin 100 1 > /dev/null || exit 1; \
+	done
+	@echo "$(GREEN)All binaries executed successfully with N=100!$(RESET)"
 
 help:
 	@echo "$(BLUE)Available commands:$(RESET)"

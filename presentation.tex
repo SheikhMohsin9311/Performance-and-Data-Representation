@@ -1,0 +1,178 @@
+\documentclass[aspectratio=169, 12pt]{beamer}
+
+% ── "The Manuscript" Theme — Elite Scholarly Presentation ─────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{ebgaramond}   % Core serif for all text
+\usepackage{microtype}    % Better kerning/letterspacing
+
+% ── Color Palette (Carbon & Cream) ────────────────────────────────────────
+\definecolor{Carbon}{HTML}{0a0a0a}       % Near-black background
+\definecolor{Cream}{HTML}{fcfcfc}        % Pure off-white text
+\definecolor{MutedGold}{HTML}{a16207}    % Dark professional gold
+\definecolor{SlateGrey}{HTML}{444444}    % Subtle boundaries
+
+\setbeamercolor{background canvas}{bg=Carbon}
+\setbeamercolor{normal text}{fg=Cream}
+\setbeamercolor{frametitle}{fg=Cream}
+\setbeamercolor{title}{fg=Cream}
+\setbeamercolor{item}{fg=Cream}
+\setbeamercolor{block title}{bg=Carbon, fg=Cream}
+\setbeamercolor{block body}{bg=Carbon, fg=Cream}
+
+% ── Minimalist Layout (Remove Clutter) ─────────────────────────────────────
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{headline}{}
+\setbeamertemplate{footline}{}
+
+% ── Typography ─────────────────────────────────────────────────────────────
+\setbeamerfont{frametitle}{family=\ebgaramond, series=\bfseries, size=\Large}
+\setbeamerfont{title}{family=\ebgaramond, series=\bfseries, size=\Huge}
+\setbeamerfont{subtitle}{family=\ebgaramond, size=\Large}
+
+% ── Packages ────────────────────────────────────────────────────────────────
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{shapes.misc, arrows.meta, positioning}
+\usepackage{fontawesome5}
+
+% ── Helpers ──────────────────────────────────────────────────────────────────
+\newcommand{\citepoint}[1]{\textcolor{MutedGold}{\textsf{#1}}}
+\newcommand{\emphasis}[1]{\textcolor{Cream}{\textbf{#1}}}
+
+% ════════════════════════════════════════════════════════════════════════════
+\begin{document}
+% ════════════════════════════════════════════════════════════════════════════
+
+% 1. TITLE
+\begin{frame}[plain]
+    \centering
+    \vfill
+    {\Huge\ebgaramond\bfseries Architectural Fidelity}\\[0.5em]
+    {\large\textit{Empirical Observations on Data Locality \& Memory Latency}}\\[2.5em]
+    
+    \begin{tikzpicture}
+        \draw[SlateGrey, line width=0.3pt] (-2,0) -- (2,0);
+        \node[Cream, font=\small\ebgaramond] at (0,-0.4) {SHEIKH MOHSIN};
+    \end{tikzpicture}
+    
+    \vfill
+    {\footnotesize\textcolor{SlateGrey}{Systems Research | FLAME University | April 2026}}
+\end{frame}
+
+% 2. THE SPATIAL PREMISE
+\begin{frame}{The Spatial Premise}
+    \vspace{1.5em}
+    \begin{columns}[c]
+        \column{0.55\textwidth}
+        \begin{tikzpicture}[x=0.45cm, y=0.45cm]
+            \draw[SlateGrey, line width=0.2pt, step=1] (-1, -3) grid (11, 4);
+            
+            % Contiguous Case
+            \node[anchor=west, font=\footnotesize] at (-0.5, 3) {\citepoint{Contiguity}};
+            \foreach \i in {0,...,7} {
+                \draw[fill=Cream, draw=Carbon] (\i, 1.5) rectangle (\i+0.9, 2.4);
+            }
+            \draw[Cream, -{Stealth}, line width=0.8pt] (0.45, 3) -- (0.45, 2.5);
+            \node[font=\tiny, anchor=west] at (1.2, 3) {Unitary Retrieval};
+
+            % Disjoint Case
+            \node[anchor=west, font=\footnotesize] at (-0.5, -1) {\citepoint{Disjunction}};
+            \node[draw=Cream, fill=Cream, minimum size=0.4cm] (p1) at (1, -2) {};
+            \node[draw=Cream, fill=Cream, minimum size=0.4cm] (p2) at (6, 0) {};
+            \node[draw=Cream, fill=Cream, minimum size=0.4cm] (p3) at (3, -2.5) {};
+            \node[draw=Cream, fill=Cream, minimum size=0.4cm] (p4) at (9, -1) {};
+            \draw[SlateGrey, -{Stealth}, line width=0.5pt, dashed] (p1) -- (p2);
+            \draw[SlateGrey, -{Stealth}, line width=0.5pt, dashed] (p2) -- (p3);
+            \draw[SlateGrey, -{Stealth}, line width=0.5pt, dashed] (p3) -- (p4);
+        \end{tikzpicture}
+
+        \column{0.4\textwidth}
+        \begin{itemize}
+            \item Modern CPUs operate on a \emphasis{spatial premise}.
+            \item Contiguous layouts leverage hardware prefetching.
+            \item Pointer-chasing induces serial stalls.
+            \item Memory latency remains the primary bottleneck of 21st-century systems.
+        \end{itemize}
+    \end{columns}
+\end{frame}
+
+% 3. EMPIRICAL LANDSCAPE
+\begin{frame}{Empirical Observations: 16 Primitive Structures}
+    \centering
+    \vfill
+    \includegraphics[width=0.74\textwidth]{slides/fig_fastest.png}
+    \vfill
+    {\footnotesize\textcolor{SlateGrey}{Measured in CPU cycles per element. Sorted by architectural efficiency.}}
+\end{frame}
+
+% 4. CAUSALITY
+\begin{frame}{The Causality of Cache Exhaustion}
+    \begin{columns}[c]
+        \column{0.65\textwidth}
+        \includegraphics[width=\textwidth]{slides/fig_scatter_misses_vs_speed.png}
+        
+        \column{0.3\textwidth}
+        \textit{The Linear Drift}\\
+        \vspace{1em}
+        {\small 
+        The correlation between L1 cache-invalidation and net latency is near-perfect ($R^2 \approx 0.99$).
+        \vspace{1.5em}
+        
+        \citepoint{Observation:}\\
+        If representation fails the cache, logic cannot recover the speed.}
+    \end{columns}
+\end{frame}
+
+% 5. DYNAMICS & PERFORMANCE INVERSION
+\begin{frame}{Working-Set Dynamics \& Performance Inversion}
+    \centering
+    \vfill
+    \includegraphics[width=0.74\textwidth]{slides/fig_scaling.png}
+    \vfill
+    {\footnotesize\textcolor{SlateGrey}{Log-log scale. Divergence occurs at cache-boundary saturation.}}
+\end{frame}
+
+% 6. THE HIERARCHY
+\begin{frame}{A Proposed Hierarchy of Data Representation}
+    \vspace{2em}
+    \begin{columns}[T]
+        \column{0.3\textwidth}
+        \citepoint{The Ideal}\\
+        \emphasis{Arrays \& Vectors}\\
+        Optimized for the\\physical machine.
+        
+        \column{0.3\textwidth}
+        \citepoint{The Hybrid}\\
+        \emphasis{BTrees}\\
+        Clustered nodes to\\amortize latency.
+        
+        \column{0.3\textwidth}
+        \citepoint{The Suboptimal}\\
+        \emphasis{Linked Lists}\\
+        Architecturally in-\\efficient at scale.
+    \end{columns}
+    \vfill
+    \centering
+    \rule{3cm}{0.2pt}\\
+    \textit{Computational complexity is secondary to spatial complexity on modern hardware.}
+\end{frame}
+
+% 7. CONCLUDING SYNTHESIS
+\begin{frame}[plain]
+    \centering
+    \vfill
+    {\Huge\ebgaramond\bfseries Synthesis}\\[2.5em]
+    
+    \begin{itemize}
+        \item[] \hspace{1cm} \citepoint{I.} Memory is no longer a passive storage tier, but a performance engine.
+        \item[] \hspace{1cm} \citepoint{II.} Representation dictates execution speed more than algorithmics.
+        \item[] \hspace{1cm} \citepoint{III.} Contiguity is a prerequisite for high-fidelity systems.
+    \end{itemize}
+    
+    \vfill
+    \vspace{2em}
+    {\footnotesize\textcolor{SlateGrey}{Full dataset available at github.com/SheikhMohsin9311}}
+\end{frame}
+
+\end{document}

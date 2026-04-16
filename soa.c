@@ -31,21 +31,34 @@ int main(int argc, char* argv[]) {
     volatile long long sink = 0;
     
     // Warm up
+    // 3 warmup passes to prime cache and branch predictor
+    for (int _wu = 0; _wu < 3; _wu++) {
     for (int i = 0; i < N; i++) sink += a[i];
+    } /* end warmup */
     __asm__ __volatile__("" ::: "memory");
 
     // Measured drowning loop
-    perf_metrics_t m;
-    start_counters(fds, 7);
-    for (int r = 0; r < runs; r++) {
-        sink = 0;
-        for (int i = 0; i < N; i++) sink += a[i];
-    }
-    stop_counters(fds, 7, &m);
+    /* Per-iteration sample collection */
+    perf_sample_t* _samples = (perf_sample_t*)malloc(runs * sizeof(perf_sample_t));
+    perf_stats_t   _stats;
+    for (int _r = 0; _r < runs; _r++) {
+        start_counters(fds, 7);
+            sink = 0;
+            for (int i = 0; i < N; i++) sink += a[i];
+        stop_counters(fds, 7, &_samples[_r]);
+    } /* end per-iteration measurement */
 
-    printf("METRICS,%lu,%lu,%lu,%lu,%lu,%lu,%lu\n", m.cycles, m.instructions, m.cache_misses, m.branches, m.branch_misses, m.l1_misses, m.tlb_misses);
+    compute_perf_stats(_samples, runs, &_stats);
+    double _ipc = (_stats.median_cycles > 0)
+        ? (double)_stats.median_instructions / _stats.median_cycles : 0.0;
+    printf("METRICS2,%lu,%lu,%.2f,%lu,%lu,%lu,%lu,%lu,%.1f\n",
+           _stats.median_cycles, _stats.median_instructions, _ipc,
+           _stats.median_cache_misses, _stats.median_branches,
+           _stats.median_branch_misses, _stats.median_l1_misses,
+           _stats.median_tlb_misses, _stats.cv_pct);
     
     free(a); free(b); free(c);
+    free(_samples);
     for(int i=0; i<7; i++) if(fds[i]!=-1) close(fds[i]);
     return 0;
 }
