@@ -3,7 +3,6 @@
 
 This repository contains a high-fidelity systems research suite designed to quantify the impact of data representation on modern x86 hardware. By bypassing high-level abstractions, we measure the direct collision between 16 primitive data structures and the CPU's memory hierarchy: $L1/L2/L3$ caches, the hardware prefetcher, and the TLB.
 
----
 
 ## 🏛️ The Spatial Premise
 Modern computing is increasingly bottlenecked by the **Memory Wall**. While algorithmic complexity ($O$ notation) dictates operation counts, **Spatial Locality** dictates execution latency. This project provides raw empirical evidence of how "optimal" algorithms can fail when their memory layouts induce pipeline stalls and cache exhaustion.
@@ -27,7 +26,7 @@ We analyze 16 distinct implementations across three architectural families:
 *   **Linked**: LinkedList, SlabList, SkipList.
 *   **Hybrid / Tree**: BST, RBTree, BTree, vEBTree, HashMap, Trie, Deque.
 
----
+
 
 ## 🚀 Usage Specification
 
@@ -52,7 +51,7 @@ The `runperf.sh` engine sweeps through working-set sizes from $10^3$ to $10^7$ e
 *   **Journal-Grade Analysis**: `analysis.py` processes the high-density dataset and generates 12+ publication-ready figures.
 *   **The Manuscript**: `presentation.pdf` contains a boutique, 5-slide academic talk designed in a **Dark Academic** style.
 
----
+
 
 ## 📊 Sample Metrics Captured
 | Metric | Significance |
@@ -63,12 +62,12 @@ The `runperf.sh` engine sweeps through working-set sizes from $10^3$ to $10^7$ e
 | **TLB Stalls** | Impact of virtual-to-physical address translation. |
 | **CV%** | Metadata for measurement reliability/noise. |
 
----
+
 
 ## 📜 Intellectual Credit
 **Sheikh Mohsin**  
 *Systems Research | FLAME University*  
 [Portfolio](https://sheikh-mohsin.vercel.app) | [GitHub](https://github.com/SheikhMohsin9311)
 
----
+
 *Results are architecture-dependent. Validated on Linux kernel 5.15+ with hardware performance counter support.*
