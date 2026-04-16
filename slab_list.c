@@ -72,11 +72,7 @@ int main(int argc, char* argv[]) {
     compute_perf_stats(_samples, runs, &_stats);
     double _ipc = (_stats.median_cycles > 0)
         ? (double)_stats.median_instructions / _stats.median_cycles : 0.0;
-    printf("METRICS2,%lu,%lu,%.2f,%lu,%lu,%lu,%lu,%lu,%.1f\n",
-           _stats.median_cycles, _stats.median_instructions, _ipc,
-           _stats.median_cache_misses, _stats.median_branches,
-           _stats.median_branch_misses, _stats.median_l1_misses,
-           _stats.median_tlb_misses, _stats.cv_pct);
+    PRINT_METRICS3(N, _stats, _ipc);
     
     free(_samples);
     for(int i=0; i<7; i++) if(fds[i]!=-1) close(fds[i]);

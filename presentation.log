@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2025/dev/Debian) (preloaded format=pdflatex 2026.2.12)  16 APR 2026 14:52
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2025/dev/Debian) (preloaded format=pdflatex 2026.2.12)  16 APR 2026 17:34
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1213,6 +1213,10 @@ Package pdftex.def Info: slides/fig_scaling.png  used on input line 268.
 [11
 
 ]
+
+[12
+
+]
 \tf@nav=\write6
 \openout6 = `presentation.nav'.
 
@@ -1231,10 +1235,10 @@ Package rerunfilecheck Info: File `presentation.out' has not changed.
 (rerunfilecheck)             Checksum: D41D8CD98F00B204E9800998ECF8427E;0.
  ) 
 Here is how much of TeX's memory you used:
- 31371 strings out of 473197
- 628434 string characters out of 5718605
- 1013081 words of memory out of 5000000
- 53875 multiletter control sequences out of 15000+600000
+ 31375 strings out of 473197
+ 628469 string characters out of 5718605
+ 1013117 words of memory out of 5000000
+ 53877 multiletter control sequences out of 15000+600000
  621685 words of font info for 170 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  128i,11n,123p,1009b,1015s stack positions out of 10000i,1000n,20000p,200000b,200000s
@@ -1257,10 +1261,10 @@ pe1/public/cm-super/sfss1440.pfb></usr/share/texmf/fonts/type1/public/cm-super/
 sfss2488.pfb></usr/share/texmf/fonts/type1/public/cm-super/sfsx1000.pfb></usr/s
 hare/texmf/fonts/type1/public/cm-super/sfsx1200.pfb></usr/share/texmf/fonts/typ
 e1/public/cm-super/sftt0800.pfb>
-Output written on presentation.pdf (11 pages, 1092186 bytes).
+Output written on presentation.pdf (12 pages, 1175410 bytes).
 PDF statistics:
- 200 PDF objects out of 1000 (max. 8388607)
- 129 compressed objects within 2 object streams
- 23 named destinations out of 1000 (max. 500000)
+ 206 PDF objects out of 1000 (max. 8388607)
+ 134 compressed objects within 2 object streams
+ 25 named destinations out of 1000 (max. 500000)
  67642 words of extra memory for PDF output out of 74296 (max. 10000000)
 

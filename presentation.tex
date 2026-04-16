@@ -50,7 +50,7 @@
     \centering
     \vfill
     {\Huge\ebgaramond\bfseries Architectural Fidelity}\\[0.5em]
-    {\large\textit{Empirical Observations on Data Locality \& Memory Latency \& Impact of on Performance}}\\[2.5em]
+    {\large\textit{Empirical Observations on Data Structure \& Memory Latency \& Impact on Performance}}\\[2.5em]
     
     \begin{tikzpicture}
         \draw[SlateGrey, line width=0.3pt] (-2,0) -- (2,0);
@@ -98,8 +98,8 @@
     \end{columns}
 \end{frame}
 
-% 3. THE SCALE OF THE RESEARCH
-\begin{frame}{The Scale of the Research}
+% 3. THE SCALE OF THE PROJECT
+\begin{frame}{The Scale of the Project}
     \vfill
     \begin{columns}[T]
         \column{0.3\textwidth}
@@ -292,7 +292,31 @@
     \textit{Computational complexity is secondary to spatial complexity on modern hardware.}
 \end{frame}
 
-% 7. CONCLUDING SYNTHESIS
+% 10. SCIENTIFIC DISCLOSURE: LIMITATIONS
+\begin{frame}{Scientific Disclosure: Limitations}
+    \vspace{1.5em}
+    \begin{columns}[T]
+        \column{0.45\textwidth}
+        \citepoint{Architectural Specificity}\\
+        \subtle{Hardware-Dependent Results}\\
+        \vspace{0.8em}
+        {\footnotesize\begin{itemize}
+            \item \emphasis{Microarchitecture}: Results are specific to the Intel/AMD cache hierarchy used during testing.
+            \item \emphasis{Single Operation}: Benchmarks isolate \emphasis{Traversal} performance; read/write/delete trade-offs are not explored here.
+        \end{itemize}}
+
+        \column{0.45\textwidth}
+        \citepoint{Methodological Scope}\\
+        \subtle{Trade-offs in Modeling}\\
+        \vspace{0.8em}
+        {\footnotesize\begin{itemize}
+            \item \emphasis{Allocation Bias}: Measurements exclude \emphasis{malloc} overhead; real-world fragmentation impacts are simplified.
+            \item \emphasis{Stationary Workloads}: Does not model dynamic churn or cache-pollution from interleaved tasks.
+        \end{itemize}}
+    \end{columns}
+\end{frame}
+
+% 11. CONCLUDING SYNTHESIS
 \begin{frame}[plain]
     \centering
     \vfill

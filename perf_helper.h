@@ -26,6 +26,8 @@ typedef struct {
 typedef struct {
     uint64_t median_cycles;
     uint64_t min_cycles;
+    double   stddev_cycles;   /* sample standard deviation of cycles */
+    double   ci95_cycles;     /* 95% CI half-width: 1.96*stddev/sqrt(n) */
     uint64_t median_instructions;
     uint64_t median_cache_misses;
     uint64_t median_branches;
@@ -34,6 +36,18 @@ typedef struct {
     uint64_t median_tlb_misses;
     double   cv_pct;    /* coefficient of variation for cycles (%) */
 } perf_stats_t;
+
+/* ── METRICS3 output helper macro ────────────────────────────────────────── */
+/* Columns: tag,N,cycles,instructions,ipc,cache_misses,branches,
+            branch_misses,l1_misses,tlb_misses,cv_pct,stddev_cycles,ci95_cycles */
+#define PRINT_METRICS3(N, stats, ipc)                                              \
+    printf("METRICS3,%d,%lu,%lu,%.2f,%lu,%lu,%lu,%lu,%lu,%.1f,%.0f,%.0f\n",       \
+           (int)(N),                                                               \
+           (stats).median_cycles, (stats).median_instructions, (ipc),              \
+           (stats).median_cache_misses, (stats).median_branches,                   \
+           (stats).median_branch_misses, (stats).median_l1_misses,                 \
+           (stats).median_tlb_misses, (stats).cv_pct,                             \
+           (stats).stddev_cycles, (stats).ci95_cycles)
 
 /* ── Open a single perf counter, return fd or -1 on failure ─────────────── */
 static int open_perf_counter(uint32_t type, uint64_t config) {
@@ -72,7 +86,7 @@ static inline void stop_counters(int* fds, int count, perf_sample_t* s) {
             results[i] = 0;
         }
     }
-    /* Warn once if critical counters are zero (likely paranoid/permission issue) */
+    /* Warn once if critical counters are zero (paranoid / permission issue) */
     static int warned = 0;
     if (!warned && (s->cycles == 0 || s->instructions == 0)) {
         fprintf(stderr,
@@ -89,8 +103,7 @@ static int _cmp_u64(const void* a, const void* b) {
     return (x > y) - (x < y);
 }
 
-/* ── Compute median / min / CV from an array of uint64_t samples ─────────
-   Sorts the array in-place.                                                 */
+/* ── Compute median from a sorted / unsorted uint64_t array ─────────────── */
 static inline uint64_t _median_u64(uint64_t* arr, int n) {
     qsort(arr, n, sizeof(uint64_t), _cmp_u64);
     if (n % 2 == 1) return arr[n / 2];
@@ -100,14 +113,13 @@ static inline uint64_t _median_u64(uint64_t* arr, int n) {
 /* ── Aggregate an array of perf_sample_t into perf_stats_t ──────────────── */
 static inline void compute_perf_stats(perf_sample_t* samples, int n,
                                       perf_stats_t* out) {
-    /* Temporary arrays for each metric */
-    uint64_t* cyc   = (uint64_t*)malloc(n * sizeof(uint64_t));
-    uint64_t* ins   = (uint64_t*)malloc(n * sizeof(uint64_t));
-    uint64_t* cm    = (uint64_t*)malloc(n * sizeof(uint64_t));
-    uint64_t* br    = (uint64_t*)malloc(n * sizeof(uint64_t));
-    uint64_t* brm   = (uint64_t*)malloc(n * sizeof(uint64_t));
-    uint64_t* l1    = (uint64_t*)malloc(n * sizeof(uint64_t));
-    uint64_t* tlb   = (uint64_t*)malloc(n * sizeof(uint64_t));
+    uint64_t* cyc = (uint64_t*)malloc(n * sizeof(uint64_t));
+    uint64_t* ins = (uint64_t*)malloc(n * sizeof(uint64_t));
+    uint64_t* cm  = (uint64_t*)malloc(n * sizeof(uint64_t));
+    uint64_t* br  = (uint64_t*)malloc(n * sizeof(uint64_t));
+    uint64_t* brm = (uint64_t*)malloc(n * sizeof(uint64_t));
+    uint64_t* l1  = (uint64_t*)malloc(n * sizeof(uint64_t));
+    uint64_t* tlb = (uint64_t*)malloc(n * sizeof(uint64_t));
 
     for (int i = 0; i < n; i++) {
         cyc[i] = samples[i].cycles;
@@ -119,17 +131,20 @@ static inline void compute_perf_stats(perf_sample_t* samples, int n,
         tlb[i] = samples[i].tlb_misses;
     }
 
-    /* Sort once to get median and min for cycles */
+    /* Sort cycles to compute median and min */
     qsort(cyc, n, sizeof(uint64_t), _cmp_u64);
     out->min_cycles    = cyc[0];
     out->median_cycles = (n % 2 == 1) ? cyc[n/2] : (cyc[n/2-1] + cyc[n/2]) / 2;
 
-    /* Coefficient of variation = stddev / mean * 100 */
+    /* Bessel-corrected sample stddev, CV, and 95% CI half-width */
     double sum = 0.0, sum2 = 0.0;
-    for (int i = 0; i < n; i++) { sum += cyc[i]; sum2 += (double)cyc[i] * cyc[i]; }
+    for (int i = 0; i < n; i++) { sum += cyc[i]; sum2 += (double)cyc[i]*cyc[i]; }
     double mean = sum / n;
-    double var  = (sum2 / n) - (mean * mean);
-    out->cv_pct = (mean > 0) ? (sqrt(var > 0 ? var : 0) / mean) * 100.0 : 0.0;
+    double var  = (n > 1) ? (sum2 - sum*sum/n) / (n-1) : 0.0;
+    double sd   = sqrt(var > 0 ? var : 0);
+    out->stddev_cycles = sd;
+    out->ci95_cycles   = (n > 1) ? 1.96 * sd / sqrt((double)n) : 0.0;
+    out->cv_pct        = (mean > 0) ? (sd / mean) * 100.0 : 0.0;
 
     out->median_instructions  = _median_u64(ins, n);
     out->median_cache_misses  = _median_u64(cm,  n);

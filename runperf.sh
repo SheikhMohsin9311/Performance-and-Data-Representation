@@ -50,7 +50,7 @@ echo "  RUNS (S/M/L): ${RUNS_SMALL}/${RUNS_MEDIUM}/${RUNS_LARGE}"
 echo "=========================="
 
 # Write CSV header
-echo "data_structure,N,runs,median_cycles,median_instructions,ipc,median_cache_misses,median_branches,median_branch_misses,median_l1_misses,median_tlb_misses,cv_pct" > "$OUTPUT"
+echo "data_structure,N,runs,median_cycles,median_instructions,ipc,median_cache_misses,median_branches,median_branch_misses,median_l1_misses,median_tlb_misses,cv_pct,stddev_cycles,ci95_cycles" > "$OUTPUT"
 
 # All 16 Data Structures
 declare -a ENTRIES=(
@@ -72,82 +72,92 @@ declare -a ENTRIES=(
     "veb_tree:vEBTree"
 )
 
-# Fixed canonical sizes: 4 steps per decade from 10^3 to 10^7
-# (no jitter — identical workloads every run for reproducibility)
-SIZES=(
-    1000 2500 5000 7500
-    10000 25000 50000 75000
-    100000 250000 500000 750000
-    1000000 2500000 5000000 7500000
-    10000000
+# ==========================================
+# MASTER ARCHIVE CONFIGURATION
+# ==========================================
+MASTER_ARCHIVE="${MASTER_ARCHIVE:-masterresultsOvernight.csv}"
+CSV_HEADER="data_structure,N,runs,median_cycles,median_instructions,ipc,median_cache_misses,median_branches,median_branch_misses,median_l1_misses,median_tlb_misses,cv_pct,stddev_cycles,ci95_cycles"
+
+if [ ! -f "$MASTER_ARCHIVE" ]; then
+    echo "$CSV_HEADER" > "$MASTER_ARCHIVE"
+fi
+# ==========================================
+
+# ── Mixed Round-Robin Strategy ────────────────────────────────────────────────
+# We sweep each decade, but within each decade, we iterate through ALL 
+# structures for each N-step. This ensures "mixed" data from the start.
+
+echo "Starting Mixed Round-Robin Sweep ($(( ${#ENTRIES[@]} )) structures, N up to 10^8) ..."
+
+# Decade Definitions: min:max:step
+DECADES=(
+    "1000:10000:30"        # step 30  => ~300 pts/ds
+    "10000:100000:300"     # step 300 => ~300 pts/ds
+    "100000:1000000:3300"  # step 3.3k => ~270 pts/ds
+    "1000000:10000000:33000" # step 33k => ~270 pts/ds
+    "10000000:100000000:330000" # step 330k => ~270 pts/ds
 )
 
-# Verify binaries are present
-if [ ! -d "bin" ] || [ -z "$(ls -A bin 2>/dev/null)" ]; then
-    echo "Error: bin/ directory is empty. Run 'make' first!"
-    exit 1
-fi
+for DECADE in "${DECADES[@]}"; do
+    IFS=':' read -r min max step <<< "$DECADE"
+    echo "--- Scaling Range: $min to $max ---"
+    
+    for (( base=$min; base<$max; base+=$step )); do
+        # Randomize structure order slightly within each N-step for "true" mix
+        SHUFFLED_ENTRIES=$(printf "%s\n" "${ENTRIES[@]}" | shuf)
+        
+        while IFS= read -r entry; do
+            binary="${entry%%:*}"
+            label="${entry##*:}"
 
-for entry in "${ENTRIES[@]}"; do
-    binary="${entry%%:*}"
-    label="${entry##*:}"
+            if [ ! -f "./bin/$binary" ]; then continue; fi
 
-    if [ ! -f "./bin/$binary" ]; then
-        echo "Skipping $label (binary not found in ./bin/)"
-        continue
-    fi
+            # Jitter N per structure to cover more ground
+            jitter=$(( RANDOM % (step / 2 + 1) ))
+            if [ $(( RANDOM % 2 )) -eq 0 ]; then
+                N=$(( base + jitter ))
+            else
+                N=$(( base - jitter ))
+            fi
+            
+            # Clamp and bounds check
+            [ "$N" -lt "$min" ] && N=$min
+            [ "$N" -gt "$max" ] && N=$max
+            [ "$N" -gt 100000000 ] && N=100000000
 
-    echo -n "Benchmarking $label ... "
-    for N in "${SIZES[@]}"; do
+            # Tailored RUNS for speed/fidelity balance
+            if [ "$N" -ge 10000000 ]; then RUNS=$RUNS_LARGE;
+            elif [ "$N" -ge 1000000 ]; then RUNS=$RUNS_MEDIUM;
+            elif [ "$N" -ge 100000 ]; then RUNS=$RUNS_SMALL;
+            else RUNS=$RUNS_TINY; fi
 
-        # Deterministic RUNS based on N tier
-        if [ "$N" -ge 10000000 ]; then
-            RUNS=$RUNS_LARGE
-        elif [ "$N" -ge 1000000 ]; then
-            RUNS=$RUNS_MEDIUM
-        elif [ "$N" -ge 100000 ]; then
-            RUNS=$RUNS_SMALL
-        else
-            RUNS=$RUNS_TINY
-        fi
+            # Execution
+            if ! exec_output=$(taskset -c $CORE_ID "./bin/$binary" "$N" "$RUNS" 2>&1); then
+                printf " [FAIL: %s@%d]" "$label" "$N"
+                continue
+            fi
 
-        # Execute binary with crash detection
-        if ! exec_output=$(taskset -c $CORE_ID "./bin/$binary" "$N" "$RUNS" 2>&1); then
-            echo ""
-            echo "  [ERROR] $label crashed at N=$N — skipping"
-            continue
-        fi
+            # Parse & Log
+            metrics_line=$(echo "$exec_output" | grep "^METRICS3" | tail -1)
+            [ -z "$metrics_line" ] && continue
 
-        # Parse METRICS2 line: median_cycles,median_instructions,ipc,cache_misses,
-        #                       branches,branch_misses,l1_misses,tlb_misses,cv_pct
-        metrics_line=$(echo "$exec_output" | grep "^METRICS2" | tail -1)
-        if [ -z "$metrics_line" ]; then
-            echo ""
-            echo "  [WARNING] No METRICS2 output for $label at N=$N"
-            continue
-        fi
+            perf_data="${metrics_line#METRICS3,}"
+            IFS=',' read -r N_val med_cyc med_ins ipc med_cm med_br med_brm med_l1 med_tlb cv_pct stddev ci95 <<< "$perf_data"
 
-        # Strip "METRICS2," prefix
-        perf_data="${metrics_line#METRICS2,}"
+            row=$(printf "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s" \
+                "$label" "$N" "$RUNS" \
+                "${med_cyc:-0}" "${med_ins:-0}" "${ipc:-0.00}" \
+                "${med_cm:-0}"  "${med_br:-0}"  "${med_brm:-0}" \
+                "${med_l1:-0}"  "${med_tlb:-0}" "${cv_pct:-0.0}" \
+                "${stddev:-0}"  "${ci95:-0}")
 
-        IFS=',' read -r med_cyc med_ins ipc med_cm med_br med_brm med_l1 med_tlb cv_pct <<< "$perf_data"
-
-        # Warn if the measurement is too short to be meaningful
-        if [ "${med_cyc:-0}" -lt "$MIN_CYCLES_WARN" ] 2>/dev/null; then
-            echo ""
-            echo "  [NOISE] $label N=$N: only ${med_cyc} median cycles — cv_pct unreliable (increase RUNS_TINY)"
-        fi
-
-        printf "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" \
-            "$label" "$N" "$RUNS" \
-            "${med_cyc:-0}" "${med_ins:-0}" "${ipc:-0.00}" \
-            "${med_cm:-0}"  "${med_br:-0}"  "${med_brm:-0}" \
-            "${med_l1:-0}"  "${med_tlb:-0}" "${cv_pct:-0.0}" >> "$OUTPUT"
-
-        echo -n "."
+            echo "$row" >> "$OUTPUT"
+            echo "$row" >> "$MASTER_ARCHIVE"
+            
+        done <<< "$SHUFFLED_ENTRIES"
+        printf "." # Progress tick per N-step across ALL structures
     done
-    echo " done"
-    sleep 1  # Thermal cooldown between structures
+    printf "\n"
 done
 
 # Summary

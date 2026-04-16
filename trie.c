@@ -1,65 +1,99 @@
+/* trie.c — Binary Trie Traversal
+ *
+ * A 32-level binary trie (one bit per level) stores N 32-bit integers.
+ * Each insertion consumes exactly 32 edges in the worst case, giving a
+ * maximum depth of 32. The actual number of nodes is at most N*32 but
+ * shared prefixes reduce this significantly.
+ *
+ * Traversal uses DFS inorder, visiting every leaf node exactly once.
+ * This guarantees that exactly N values are summed during the measurement
+ * window and node count scales predictably with N.
+ *
+ * Memory access pattern: highly disjoint (pointer-chasing at each level),
+ * which is the correct pathological case for trie benchmarking.
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include "perf_helper.h"
 
+static inline unsigned int det_u(int i) { return (unsigned)i * 2654435761u; }
+
+#define BITS 32
+
 struct TrieNode {
-    int val;
-    struct TrieNode* children[4];
+    struct TrieNode* child[2];
+    int val;       /* stored at leaves only; -1 means internal node */
 };
 
-static inline int det(int i) { return (int)((unsigned)i * 2654435761u); }
+static struct TrieNode* new_node(void) {
+    struct TrieNode* n = (struct TrieNode*)calloc(1, sizeof(struct TrieNode));
+    n->val = -1;
+    return n;
+}
 
-void traverse_trie(struct TrieNode* node, volatile long long* sink) {
+static void trie_insert(struct TrieNode* root, unsigned int key, int val) {
+    struct TrieNode* cur = root;
+    for (int b = BITS - 1; b >= 0; b--) {
+        int bit = (key >> b) & 1;
+        if (!cur->child[bit]) cur->child[bit] = new_node();
+        cur = cur->child[bit];
+    }
+    cur->val = val;
+}
+
+static void traverse_trie(struct TrieNode* node, volatile long long* sink) {
     if (!node) return;
-    *sink += node->val;
-    for (int i = 0; i < 4; i++) traverse_trie(node->children[i], sink);
+    if (node->val != -1) {        /* leaf */
+        *sink += node->val;
+        return;
+    }
+    traverse_trie(node->child[0], sink);
+    traverse_trie(node->child[1], sink);
+}
+
+static void free_trie(struct TrieNode* node) {
+    if (!node) return;
+    free_trie(node->child[0]);
+    free_trie(node->child[1]);
+    free(node);
 }
 
 int main(int argc, char* argv[]) {
-    int N = (argc > 1) ? atoi(argv[1]) : 524288;
+    int N    = (argc > 1) ? atoi(argv[1]) : 524288;
     int runs = (argc > 2) ? atoi(argv[2]) : 1;
 
-    struct TrieNode* root = (struct TrieNode*)calloc(1, sizeof(struct TrieNode));
+    /* Insert N distinct keys (deterministic hash spread across 32-bit space) */
+    struct TrieNode* root = new_node();
     for (int i = 0; i < N; i++) {
-        struct TrieNode* curr = root;
-        int key = det(i);
-        // Use more bits to ensure we don't saturate the tree early
-        // 12 levels with 2 bits each = 24 bits covered. 4^12 = 16M nodes possible.
-        for (int depth = 0; depth < 12; depth++) {
-            int branch = (key >> (depth*2)) & 3;
-            if (!curr->children[branch]) {
-                curr->children[branch] = (struct TrieNode*)calloc(1, sizeof(struct TrieNode));
-            }
-            curr = curr->children[branch];
-        }
-        curr->val += key;
+        unsigned int key = det_u(i);
+        trie_insert(root, key, (int)key);
     }
 
-    
+    /* Open hardware counters */
     int fds[7];
     fds[0] = open_perf_counter(PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES);
     fds[1] = open_perf_counter(PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS);
     fds[2] = open_perf_counter(PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_MISSES);
     fds[3] = open_perf_counter(PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_INSTRUCTIONS);
     fds[4] = open_perf_counter(PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_MISSES);
-    fds[5] = open_perf_counter(PERF_TYPE_HW_CACHE, (PERF_COUNT_HW_CACHE_L1D | (PERF_COUNT_HW_CACHE_OP_READ << 8) | (PERF_COUNT_HW_CACHE_RESULT_MISS << 16)));
-    fds[6] = open_perf_counter(PERF_TYPE_HW_CACHE, (PERF_COUNT_HW_CACHE_DTLB | (PERF_COUNT_HW_CACHE_OP_READ << 8) | (PERF_COUNT_HW_CACHE_RESULT_MISS << 16)));
+    fds[5] = open_perf_counter(PERF_TYPE_HW_CACHE,
+        (PERF_COUNT_HW_CACHE_L1D | (PERF_COUNT_HW_CACHE_OP_READ << 8) |
+         (PERF_COUNT_HW_CACHE_RESULT_MISS << 16)));
+    fds[6] = open_perf_counter(PERF_TYPE_HW_CACHE,
+        (PERF_COUNT_HW_CACHE_DTLB | (PERF_COUNT_HW_CACHE_OP_READ << 8) |
+         (PERF_COUNT_HW_CACHE_RESULT_MISS << 16)));
 
     __asm__ __volatile__("" ::: "memory");
 
-
-    __asm__ __volatile__("" ::: "memory");
+    /* 3 warmup traversals to prime branch predictor */
     volatile long long sink = 0;
-    
-    // Warm up
-    // 3 warmup passes to prime cache and branch predictor
     for (int _wu = 0; _wu < 3; _wu++) {
-    traverse_trie(root, &sink);
-    } /* end warmup */
+        sink = 0;
+        traverse_trie(root, &sink);
+    }
     __asm__ __volatile__("" ::: "memory");
 
-    // Measured drowning loop
-    /* Per-iteration sample collection */
+    /* Per-run sampling */
     perf_sample_t* _samples = (perf_sample_t*)malloc(runs * sizeof(perf_sample_t));
     perf_stats_t   _stats;
     for (int _r = 0; _r < runs; _r++) {
@@ -67,18 +101,17 @@ int main(int argc, char* argv[]) {
             sink = 0;
             traverse_trie(root, &sink);
         stop_counters(fds, 7, &_samples[_r]);
-    } /* end per-iteration measurement */
+    }
 
     compute_perf_stats(_samples, runs, &_stats);
     double _ipc = (_stats.median_cycles > 0)
         ? (double)_stats.median_instructions / _stats.median_cycles : 0.0;
-    printf("METRICS2,%lu,%lu,%.2f,%lu,%lu,%lu,%lu,%lu,%.1f\n",
-           _stats.median_cycles, _stats.median_instructions, _ipc,
-           _stats.median_cache_misses, _stats.median_branches,
-           _stats.median_branch_misses, _stats.median_l1_misses,
-           _stats.median_tlb_misses, _stats.cv_pct);
-    
+    PRINT_METRICS3(N, _stats, _ipc);
+
+    if (sink == 0xDEADBEEF) printf("Impossible\n");
+
+    free_trie(root);
     free(_samples);
-    for(int i=0; i<7; i++) if(fds[i]!=-1) close(fds[i]);
+    for (int i = 0; i < 7; i++) if (fds[i] != -1) close(fds[i]);
     return 0;
 }

@@ -50,11 +50,11 @@ plt.rcParams.update({
 # ── Classical Academic Palette ──────────────────────────────────────────────
 # Muted, sophisticated colors (Silver, Slate Blue, Sage, Dusty Rose, Sand)
 FAMILY_COLOR = {
-    "Contiguous":  "#94a3b8",   # Slate Blue/Silver (High Fidelity)
-    "Tree":        "#5eead4",   # Tealg/Sage
-    "Linked":      "#e2e8f0",   # Off-white/Ghost (The "old" structures)
-    "Hash / Trie": "#cbd5e1",   # Light Slate
-    "Deque":       "#475569",   # Dark Slate
+    "Contiguous":  "#3b82f6",   # Vivid Blue
+    "Tree":        "#10b981",   # Emerald Green
+    "Linked":      "#f59e0b",   # Vivid Amber
+    "Hash / Trie": "#ec4899",   # Pink
+    "Deque":       "#8b5cf6",   # Violet
 }
 FAMILIES = {
     "Contiguous":  {"Array","Vector","CircularBuffer","Heap","AoS","SoA"},
@@ -68,42 +68,34 @@ def family_of(ds):
         if ds in m: return f
     return "Other"
 
-# ── Load data (Strict: Version 2 only) ────────────────────────────────────────
-METRICS2_COLS = {"median_cycles","median_instructions","median_cache_misses",
-                 "median_l1_misses","median_tlb_misses","cv_pct"}
+# ── Load data (Strict: Version 3 only) ────────────────────────────────────────
+METRICS3_COLS = {
+    "data_structure", "N", "runs", "median_cycles", "median_instructions",
+    "ipc", "median_cache_misses", "median_branches", "median_branch_misses",
+    "median_l1_misses", "median_tlb_misses", "cv_pct", "stddev_cycles", "ci95_cycles"
+}
 
-def _is_valid_metrics2(df):
-    """Ensure the file has the new-style statistical columns."""
-    return METRICS2_COLS.issubset(set(df.columns))
+# ── Load data (Strict: High-Fidelity Standardized only) ────────────────────────
+def load_standardized():
+    fname = "high_fidelity_standardized_results.csv"
+    if not os.path.exists(fname):
+        print(f"❌ Error: {fname} not found. Run consolidate_results.py first.")
+        exit(1)
+    return pd.read_csv(fname)
 
-frames = []
-for f in sorted(glob.glob("deep_scaling_results*.csv")):
-    # Skip files being actively written (checked via mtime vs current)
-    if time.time() - os.path.getmtime(f) < 2: continue
-    try:
-        raw = pd.read_csv(f)
-        if _is_valid_metrics2(raw):
-            frames.append(raw)
-    except Exception: pass
-
-if not frames:
-    print("❌ Error: No valid METRICS2 data found. Run benchmarks first.")
-    exit(1)
-
-df = pd.concat(frames, ignore_index=True)
+df = load_standardized()
 
 # Data Quality Filters
-df = df[df["median_cycles"] >= 50_000] # Drop noise-only runs
-df = df[df["cv_pct"].isna() | (df["cv_pct"] <= 40)] # Drop jittery runs
+df = df[df["median_cycles"] >= 50_000] 
 df["_cv"] = df["cv_pct"].fillna(100)
 df = (df.sort_values("_cv")
-        .drop_duplicates(subset=["data_structure","N"])
-        .drop(columns=["_cv"]).reset_index(drop=True))
+        .drop_duplicates(subset=["data_structure","N"]))
 
 # Inferred Metrics
-df["cycles_per_n"]    = df["median_cycles"]    / df["N"]
-df["l1_misses_per_n"] = df["median_l1_misses"] / df["N"]
-df["family"]          = df["data_structure"].map(family_of)
+df["cycles_per_n"]     = df["median_cycles"]    / df["N"]
+df["l1_misses_per_n"]  = df["median_l1_misses"] / df["N"]
+df["ci95_per_n"]       = df["ci95_cycles"]      / df["N"] # Error bar scale
+df["family"]           = df["data_structure"].map(family_of)
 
 # ── Global Statistics for Presentation ───────────────────────────────────────
 total_data_points = len(df)
@@ -130,22 +122,23 @@ print(f"Loaded {len(df)} rows, largest N = {MAX_N:,}")
 # FIGURE A — "Who's Fastest?" (horizontal bar chart at large N)
 # ═══════════════════════════════════════════════════════════════════════════════
 at_max = (df[df["N"] == MAX_N]
-           .groupby("data_structure")["cycles_per_n"]
-           .median().sort_values())
+           .groupby("data_structure")[["cycles_per_n", "ci95_per_n"]]
+           .median().sort_values("cycles_per_n"))
 
 fig, ax = plt.subplots(figsize=(11, 7))
 
 bar_colors = [FAMILY_COLOR.get(family_of(ds), "#aaa") for ds in at_max.index]
-bars = ax.barh(range(len(at_max)), at_max.values, color=bar_colors,
+bars = ax.barh(range(len(at_max)), at_max["cycles_per_n"], color=bar_colors,
+               xerr=at_max["ci95_per_n"], ecolor="white", capsize=3,
                edgecolor="white", linewidth=0.5, height=0.7)
 
 # Annotate value at end of each bar
 import matplotlib.patheffects as path_effects
 pe = [path_effects.withStroke(linewidth=2, foreground='#0a0a0a')]
 
-for i, (val, bar) in enumerate(zip(at_max.values, bars)):
+for i, (val, bar) in enumerate(zip(at_max["cycles_per_n"], bars)):
     label = f"{val:.1f}" if val < 100 else f"{val:.0f}"
-    ax.text(val + at_max.max() * 0.01, i, label + " cycles/elem",
+    ax.text(val + at_max["cycles_per_n"].max() * 0.01, i, label + " cycles/elem",
             va="center", fontsize=15, fontweight="bold", color="#ffffff",
             path_effects=pe)
 
@@ -153,7 +146,7 @@ ax.set_yticks(range(len(at_max)))
 ax.set_yticklabels(at_max.index, fontsize=13)
 ax.set_xlabel(f"CPU Cycles per Element  (lower = faster,  N = {MAX_N:,})")
 ax.set_title("Which data structure is fastest?", fontweight="bold", pad=14)
-ax.set_xlim(0, at_max.max() * 1.25)
+ax.set_xlim(0, at_max["cycles_per_n"].max() * 1.25)
 ax.grid(axis="y", alpha=0)
 
 # Legend
@@ -285,17 +278,18 @@ fig, ax = plt.subplots(figsize=(10, 7))
 
 for fam, grp in scat.groupby("family"):
     sc = ax.scatter(grp["l1_misses_per_n"], grp["cycles_per_n"],
-                    s=grp["tlb_size"],
-                    color=FAMILY_COLOR.get(fam, "#aaa"),
-                    alpha=0.88, edgecolors="white", linewidth=1.2,
+                    s=grp["tlb_size"] * 1.6,
+                    color=FAMILY_COLOR.get(fam, "#ffffff"),
+                    alpha=0.95, edgecolors="#ffffff", linewidth=1.5,
                     label=fam, zorder=3)
 
 # Label each point
 for ds, row in scat.iterrows():
     ax.annotate(ds,
                 xy=(row["l1_misses_per_n"], row["cycles_per_n"]),
-                xytext=(6, 3), textcoords="offset points",
-                fontsize=9.5, color="#333")
+                xytext=(8, 3), textcoords="offset points",
+                fontsize=11, color="#ffffff", fontweight="bold",
+                path_effects=pe)
 
 # Trend line (all points)
 xv, yv = scat["l1_misses_per_n"], scat["cycles_per_n"]
@@ -335,11 +329,11 @@ df_thin = (df_s.groupby("data_structure", group_keys=False)
 fig, ax = plt.subplots(figsize=(12, 7))
 
 for fam, grp in df_thin.groupby("family"):
-    sizes = np.clip(grp["l1_misses_per_n"].fillna(0) * 4000 + 20, 15, 250)
+    sizes = np.clip(grp["l1_misses_per_n"].fillna(0) * 8000 + 40, 30, 600)
     ax.scatter(grp["N"], grp["cycles_per_n"],
                s=sizes,
-               color=FAMILY_COLOR.get(fam, "#aaa"),
-               alpha=0.55, edgecolors="none",
+               color=FAMILY_COLOR.get(fam, "#ffffff"),
+               alpha=0.9, edgecolors="#ffffff", linewidth=0.8,
                label=fam, zorder=3)
 
 # Cache boundary lines
