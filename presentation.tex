@@ -5,6 +5,11 @@
 \usepackage[T1]{fontenc}
 \usepackage{ebgaramond}   % Core serif for all text
 \usepackage{microtype}    % Better kerning/letterspacing
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{shapes.misc, arrows.meta, positioning, calc}
+\usepackage{fontawesome5}
+\hypersetup{hidelinks}
 
 % ── Color Palette (Carbon & Cream) ────────────────────────────────────────
 \definecolor{Carbon}{HTML}{0a0a0a}       % Near-black background
@@ -17,40 +22,41 @@
 \setbeamercolor{frametitle}{fg=Cream}
 \setbeamercolor{title}{fg=Cream}
 \setbeamercolor{item}{fg=Cream}
-\setbeamercolor{block title}{bg=Carbon, fg=Cream}
-\setbeamercolor{block body}{bg=Carbon, fg=Cream}
 
-% ── Minimalist Layout (Remove Clutter) ─────────────────────────────────────
+% ── Minimalist Layout ──────────────────────────────────────────────────────
 \setbeamertemplate{navigation symbols}{}
 \setbeamertemplate{headline}{}
-\setbeamertemplate{footline}{}
+\setbeamertemplate{footline}{
+  \hfill\small\textcolor{MutedGold}{\insertframenumber\,/\,\inserttotalframenumber}\quad\vspace{6pt}
+}
 
 % ── Typography ─────────────────────────────────────────────────────────────
 \setbeamerfont{frametitle}{family=\ebgaramond, series=\bfseries, size=\Large}
 \setbeamerfont{title}{family=\ebgaramond, series=\bfseries, size=\Huge}
-\setbeamerfont{subtitle}{family=\ebgaramond, size=\Large}
-
-% ── Packages ────────────────────────────────────────────────────────────────
-\usepackage{graphicx}
-\usepackage{tikz}
-\usetikzlibrary{shapes.misc, arrows.meta, positioning}
-\usepackage{fontawesome5}
 
 % ── Helpers ──────────────────────────────────────────────────────────────────
 \newcommand{\citepoint}[1]{\textcolor{MutedGold}{\textsf{#1}}}
 \newcommand{\emphasis}[1]{\textcolor{Cream}{\textbf{#1}}}
 \newcommand{\subtle}[1]{\textcolor{SlateGrey}{#1}}
+\newcommand{\analogy}[2]{
+    \begin{center}
+    \begin{tikzpicture}
+        \node[draw=MutedGold, thick, rounded corners=2pt, inner sep=10pt, fill=Carbon, text width=0.85\textwidth, align=center] {
+            \citepoint{\faLightbulb}\quad \textit{``#1 is like #2''}
+        };
+    \end{tikzpicture}
+    \end{center}
+}
 
 % ════════════════════════════════════════════════════════════════════════════
 \begin{document}
-% ════════════════════════════════════════════════════════════════════════════
 
 % 1. TITLE
 \begin{frame}[plain]
     \centering
     \vfill
-    {\Huge\ebgaramond\bfseries Architectural Fidelity}\\[0.5em]
-    {\large\textit{Empirical Observations on Data Structure \& Memory Latency \& Impact on Performance}}\\[2.5em]
+    {\Huge\ebgaramond\bfseries Why Algorithms Need the Machine}\\[0.5em]
+    {\large\textit{Locality, Speed, and the 16-Structure Sprint}}\\[2.5em]
     
     \begin{tikzpicture}
         \draw[SlateGrey, line width=0.3pt] (-2,0) -- (2,0);
@@ -58,10 +64,10 @@
     \end{tikzpicture}
     
     \vfill
-    {\footnotesize\textcolor{SlateGrey}{Systems Programming | FLAME University | April 2026}}
+    {\footnotesize\textcolor{SlateGrey}{Systems Programming | April 2026 | Prof. Sanjay Patel}}
 \end{frame}
 
-% 2. THE SPATIAL PREMISE
+% 2. THE SPATIAL PREMISE (RESTORED)
 \begin{frame}{The Spatial Premise}
     \vspace{1.5em}
     \begin{columns}[c]
@@ -69,13 +75,15 @@
         \begin{tikzpicture}[x=0.45cm, y=0.45cm]
             \draw[SlateGrey, line width=0.2pt, step=1] (-1, -3) grid (11, 4);
             
+
             % Contiguous Case
-            \node[anchor=west, font=\footnotesize] at (-0.5, 3) {\citepoint{Contiguity}};
+            \node[anchor=west, font=\footnotesize] at (-0.5, 3.5) {\citepoint{Contiguity}};
             \foreach \i in {0,...,7} {
                 \draw[fill=Cream, draw=Carbon] (\i, 1.5) rectangle (\i+0.9, 2.4);
             }
-            \draw[Cream, -{Stealth}, line width=0.8pt] (0.45, 3) -- (0.45, 2.5);
-            \node[font=\tiny, anchor=west] at (1.2, 3) {Unitary Retrieval};
+            \draw[Cream, -{Stealth}, line width=0.8pt] (0.45, 3.1) -- (0.45, 2.5);
+            \node[font=\tiny, anchor=west] at (0.6, 2.8) {Unitary Retrieval};
+
 
             % Disjoint Case
             \node[anchor=west, font=\footnotesize] at (-0.5, -1) {\citepoint{Disjunction}};
@@ -93,244 +101,153 @@
             \item Modern CPUs operate on a \emphasis{spatial premise}.
             \item Contiguous layouts leverage hardware prefetching.
             \item Pointer-chasing induces serial stalls.
-            \item Memory latency remains the primary bottleneck of 21st-century systems.
+            \item Memory latency is the \emphasis{primary bottleneck} of the 21st-century.
         \end{itemize}
     \end{columns}
 \end{frame}
 
-% 3. THE SCALE OF THE PROJECT
+% 3. OVERVIEW OF Project 
 \begin{frame}{The Scale of the Project}
     \vfill
     \begin{columns}[T]
         \column{0.3\textwidth}
         \centering
         \citepoint{\Huge 16}\\
-        \subtle{Primitive Data\\Structures}
+        \subtle{Data Structural\\Families}
         
         \column{0.3\textwidth}
         \centering
-        \citepoint{\Huge 94}\\
-        \subtle{Datapoints}
+        \citepoint{\Huge 6,641}\\
+        \subtle{High-Fidelity\\Datapoints}
         
         \column{0.3\textwidth}
         \centering
-        \citepoint{\Huge 7.0B}\\
-        \subtle{Memory Elements\\Processed}
+        \citepoint{\Huge 722.2B}\\
+        \subtle{Memory Elements\\Analyzed}
     \end{columns}
     \vfill
-    \begin{exampleblock}{\faDatabase\ Methodology}
-        Each datapoint represents the median of up to 1,000 statistical samples collected via internal hardware performance counters, filtered for a Coefficient of Variation (CV) < 15\%.
-    \end{exampleblock}
+    
 \end{frame}
 
-% 4. TAXONOMY
-\begin{frame}{Taxonomy: The 16 Contenders}
-    \vspace{1.5em}
-    \begin{columns}[T]
-        \column{0.3\textwidth}
-        \citepoint{Contiguous}\\
-        \subtle{Predictable Layout}\\
-        \vspace{0.5em}
-        {\footnotesize\begin{itemize}
-            \item Array / Vector
-            \item Circular Buffer
-            \item Binary Heap
-            \item AoS vs SoA
-        \end{itemize}}
-
-        \column{0.3\textwidth}
-        \citepoint{Link-Based}\\
-        \subtle{Stochastic Locality}\\
-        \vspace{0.5em}
-        {\footnotesize\begin{itemize}
-            \item Linked List
-            \item Skip List
-            \item Slab List 
-        \end{itemize}}
-
-        \column{0.3\textwidth}
-        \citepoint{Trees \& Hybrids}\\
-        \subtle{Logic-Over-Layout}\\
-        \vspace{0.5em}
-        {\footnotesize\begin{itemize}
-            \item BST / RBTree
-            \item BTree / vEBTree
-            \item HashMap / Trie
-            \item Deque
-        \end{itemize}}
-    \end{columns}
-    \vfill
-    {\footnotesize\textit{Each structure was implemented in C11 and measured across four decades of scale ($10^3$ to $10^7$).}}
-\end{frame}
-
-% 5. METHODOLOGY I: ARCHITECTURAL DETERMINISM
-\begin{frame}{Methodology I: Architectural Determinism}
-    \vspace{1.5em}
-    \begin{columns}[T]
-        \column{0.45\textwidth}
-        \citepoint{System Isolation}\\
-        \subtle{Eliminating OS-Level Variance}\\
-        \vspace{0.8em}
-        {\footnotesize\begin{itemize}
-            \item \emphasis{CPU Pinning}: Benchmarks pinned to an isolated core to prevent context-switch overhead.
-            \item \emphasis{Performance Governor}: Frequency locked at max clock to eliminate P-state ramp-up noise.
-            \item \emphasis{ASLR Disabled}: Ensuring deterministic virtual-to-physical address mapping.
-        \end{itemize}}
-
-        \column{0.45\textwidth}
-        \citepoint{Hardware State}\\
-        \subtle{Consistency Across Runs}\\
-        \vspace{0.8em}
-        {\footnotesize\begin{itemize}
-            \item \emphasis{Cold/Warm Control}: 3 leading warmup passes to prime branch predictors and L1/L2 caches.
-            \item \emphasis{C-State Suppression}: Throttling deep-sleep states to maintain constant pipeline readiness.
-        \end{itemize}}
-    \end{columns}
-\end{frame}
-
-% 6. METHODOLOGY II: DISCRETE INSTRUMENTATION
-\begin{frame}{Methodology II: Discrete Instrumentation}
+% 2. THE ANALOGY (CORE PREMISE)
+\begin{frame}{The Reality: Big O is Only Half the Story}
     \vspace{1em}
-    \begin{columns}[c]
-        \column{0.5\textwidth}
-        \begin{tikzpicture}[x=0.5cm, y=0.5cm]
-            \draw[SlateGrey, line width=0.1pt, fill=Carbon] (0,0) rectangle (10,6);
-            \node[Cream, font=\tiny\ttfamily, anchor=west] at (0.5, 5.2) {start\_counters(fds);};
-            \draw[fill=SlateGrey!20, fill opacity=0.1, draw=MutedGold, thick] (0.5, 1.5) rectangle (9.5, 4.5);
-            \node[MutedGold, font=\tiny\ttfamily, anchor=west] at (1, 3.5) {for(int i=0; i < N; i++) \{} ;
-            \node[MutedGold, font=\tiny\ttfamily, anchor=west] at (2, 2.5) {sink += traversal(i);};
-            \node[MutedGold, font=\tiny\ttfamily, anchor=west] at (1, 1.5) {\}};
-            \node[Cream, font=\tiny\ttfamily, anchor=west] at (0.5, 0.8) {stop\_counters(fds, \&sample);};
-            
-            \draw[Cream, -{Stealth}, line width=0.5pt] (10.5, 5.2) -- (12, 5.2) node[right, font=\tiny]{L1/L3 Misses};
-            \draw[Cream, -{Stealth}, line width=0.5pt] (10.5, 0.8) -- (12, 0.8) node[right, font=\tiny]{Cycles/IPC};
-        \end{tikzpicture}
-
-        \column{0.45\textwidth}
-        \citepoint{Direct Interface}\\
-        \subtle{The \emphasis{perf\_event} Subsystem}\\
-        \vspace{0.8em}
-        {\footnotesize\begin{itemize}
-            \item \emphasis{Zero-Overhead Measurement}: Internal syscalls wrap the precise observation window.
-            \item \emphasis{Median Filtering}: Capturing 1,000 samples per structure. We report the \emphasis{Median} to discard preemption-induced outliers.
-            \item \emphasis{Noise Guard}: Automatic discard of results with CV > 15\%.
-        \end{itemize}}
+    Most students learn algorithms as a count of "steps." Hardware is different.
+    \vspace{0.5em}
+    \analogy{Memory Access}{a Coffee Shop vs. a Warehouse}
+    \begin{columns}[T]
+        \column{0.48\textwidth}
+        \citepoint{L1 Cache (Coffee Shop)}\\
+        Right in front of you. Fast. Automatic.
+        
+        \column{0.48\textwidth}
+        \citepoint{RAM (The Warehouse)}\\
+        Slow. Requires a trip. CPU stalls while waiting.
     \end{columns}
+    \vfill
+    \centering
+    \textit{Choosing a data structure that "keeps data close" is the secret to speed.}
 \end{frame}
 
-% 7. EMPIRICAL LANDSCAPE
-\begin{frame}{Empirical Observations: 16 Primitive Structures}
+% 3. NEW DATA STRUCTURES
+\begin{frame}{Meet the Contenders: Beyond the BST}
+    How do we organize data when a simple list isn't enough?
+    \vspace{1em}
+    \begin{columns}[T]
+        \column{0.32\textwidth}
+        \citepoint{SkipList}\\
+        \emphasis{The Express Elevator}\\
+        {\footnotesize A list with "shortcut" lanes to skip nodes. Fast as a Tree, but simpler.}
+
+        \column{0.32\textwidth}
+        \citepoint{vEB Tree}\\
+        \emphasis{Digital Fractals}\\
+        {\footnotesize Uses recursion to divide data into clusters. Theoretically the fastest.}
+
+        \column{0.32\textwidth}
+        \citepoint{B-Tree}\\
+        \emphasis{The Librarian}\\
+        {\footnotesize Stores hundreds of items per node. Keeps the CPU happy by minimizing trips.}
+    \end{columns}
+    \vfill
+    {\footnotesize\textit{Measured all 16 contenders across 5 orders of magnitude.}}
+\end{frame}
+
+% 4. THE SPEED RANKING
+\begin{frame}{Who Wins the Sprint? (N = 41 Million)}
     \begin{columns}[c]
-        \column{0.7\textwidth}
+        \column{0.68\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{slides/fig_fastest.png}
+        \includegraphics[height=0.75\textheight]{slides/fig_fastest.png}
         
-        \column{0.28\textwidth}
+        \column{0.3\textwidth}
         \citepoint{The Latency Gap}\\
-        \vspace{1em}
-        {\footnotesize 
-        A \emphasis{57$\times$} divergence exists between the fastest and slowest structures.
-        \vspace{1.5em}
-        
-        \subtle{Contiguous systems ($<$4 cycles) leverage the full pipeline width, while Linked systems ($>$170 cycles) remain stalled on memory signals.}
+        \vfill
+        {\small 
+        \emphasis{Arrays} win by 40x.
+        \vfill
+        \subtle{Linked structures stay in "the warehouse" while the CPU waits.}
         }
     \end{columns}
-    \vfill
-    \centering
-    {\footnotesize\textcolor{SlateGrey}{Measured in CPU cycles per element at $N=10,000,000$. Sorted by architectural efficiency.}}
 \end{frame}
 
-% 4. CAUSALITY
-\begin{frame}{The Causality of Cache Exhaustion}
+% 5. THE CACHE CLIFF
+\begin{frame}{Size Matters: The Cache Cliff}
+    \centering
+    \includegraphics[width=0.85\textwidth]{slides/fig_scaling.png}\\[0.5em]
+    {\footnotesize Notice the "step up" in cycles as data outgrows the CPU's internal memory.}
+\end{frame}
+
+% 6. WHY ARRAYS WIN
+\begin{frame}{The Secret Multiplier: Locality}
     \begin{columns}[c]
-        \column{0.65\textwidth}
-        \includegraphics[width=\textwidth]{slides/fig_scatter_misses_vs_speed.png}
+        \column{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{slides/fig_why_arrays.png}
         
-        \column{0.3\textwidth}
-        \textit{The Linear Drift}\\
+        \column{0.5\textwidth}
+        \analogy{Locality}{Shopping in one aisle vs. running across the store.}
         \vspace{1em}
         {\small 
-        The correlation between L1 cache-invalidation and net latency is near-perfect ($R^2 \approx 0.99$).
-        \vspace{1.5em}
-        
-        \citepoint{Observation:}\\
-        If representation fails the cache, logic cannot recover the speed.}
+        \emphasis{Pointer Tax:} Lists force the CPU to find a new address for every single element.}
     \end{columns}
 \end{frame}
 
-% 5. DYNAMICS & PERFORMANCE INVERSION
-\begin{frame}{Working-Set Dynamics \& Performance Inversion}
+% 7. PRACTICAL WISDOM
+\begin{frame}{Practical Lessons}
     \centering
     \vfill
-    \includegraphics[width=0.74\textwidth]{slides/fig_scaling.png}
+    {\Large\citepoint{Algorithms are Math, but Performance is Physics.}}\\[2.5em]
+    
+    \begin{itemize}
+        \item[] \citepoint{I.} \emphasis{Contiguity is King:} Keep your data together in memory.
+        \item[] \citepoint{II.} \emphasis{Complexity $\neq$ Speed:} A smart algorithm can be slow if it's "messy."
+        \item[] \citepoint{III.} \emphasis{Hardware Harmony:} Think about the machine, not just the code.
+    \end{itemize}
     \vfill
-    {\footnotesize\textcolor{SlateGrey}{Log-log scale. Divergence occurs at cache-boundary saturation.}}
 \end{frame}
-
-% 6. THE HIERARCHY
-\begin{frame}{A Proposed Hierarchy of Data Representation}
-    \vspace{2em}
-    \begin{columns}[T]
-        \column{0.3\textwidth}
-        \citepoint{The Ideal}\\
-        \emphasis{Arrays \& Vectors}\\
-        Optimized for the\\physical machine.
-        
-        \column{0.3\textwidth}
-        \citepoint{The Hybrid}\\
-        \emphasis{BTrees}\\
-        Clustered nodes to\\amortize latency.
-        
-        \column{0.3\textwidth}
-        \citepoint{The Suboptimal}\\
-        \emphasis{Linked Lists}\\
-        Architecturally in-\\efficient at scale.
-    \end{columns}
-    \vfill
-    \centering
-    \rule{3cm}{0.2pt}\\
-    \textit{Computational complexity is secondary to spatial complexity on modern hardware.}
-\end{frame}
-
-% 10. SCIENTIFIC DISCLOSURE: LIMITATIONS
-\begin{frame}{Scientific Disclosure: Limitations}
-    \vspace{1.5em}
-    \begin{columns}[T]
-        \column{0.45\textwidth}
-        \citepoint{Architectural Specificity}\\
-        \subtle{Hardware-Dependent Results}\\
-        \vspace{0.8em}
-        {\footnotesize\begin{itemize}
-            \item \emphasis{Microarchitecture}: Results are specific to the Intel/AMD cache hierarchy used during testing.
-            \item \emphasis{Single Operation}: Benchmarks isolate \emphasis{Traversal} performance; read/write/delete trade-offs are not explored here.
-        \end{itemize}}
-
-        \column{0.45\textwidth}
-        \citepoint{Methodological Scope}\\
-        \subtle{Trade-offs in Modeling}\\
-        \vspace{0.8em}
-        {\footnotesize\begin{itemize}
-            \item \emphasis{Allocation Bias}: Measurements exclude \emphasis{malloc} overhead; real-world fragmentation impacts are simplified.
-            \item \emphasis{Stationary Workloads}: Does not model dynamic churn or cache-pollution from interleaved tasks.
-        \end{itemize}}
-    \end{columns}
-\end{frame}
-
-% 11. CONCLUDING SYNTHESIS
+% 8. Q&A
 \begin{frame}[plain]
     \centering
     \vfill
-    {\Huge\ebgaramond\bfseries Synthesis}\\[2.5em]
+    {\Huge\citepoint{\faChartLine}}\\[1em]
+    {\Huge\ebgaramond\bfseries Any Questions?}\\[2.5em]
     
-    \begin{itemize}
-        \item[] \hspace{1cm} \citepoint{I.} Memory is no longer a passive storage tier, but a performance engine.
-        \item[] \hspace{1cm} \citepoint{II.} Representation dictates execution speed more than algorithmics.
-        \item[] \hspace{1cm} \citepoint{III.} Contiguity is a prerequisite for high-fidelity systems.
-    \end{itemize}
     
     \vfill
-    \vspace{2em}
-    {\footnotesize\textcolor{SlateGrey}{Full project at github.com/SheikhMohsin9311/Data-Structure-Performance-Analysis}}
 \end{frame}
 
+% 9. THANK YOU
+\begin{frame}[plain]
+    \centering
+    \vfill
+    {\Huge\ebgaramond\bfseries Thank You!}\\[1.5em]
+    {\large\citepoint{Sheikh Mohsin}}\\[0.5em]
+    {\small\subtle{Systems Programming | 2026}}\\[2.5em]
+    
+    \begin{tikzpicture}
+        \draw[SlateGrey, line width=0.3pt] (-3,0) -- (3,0);
+    \end{tikzpicture}\\[1em]
+    \faGithub\ \ \href{https://github.com/SheikhMohsin9311/Performance-and-Data-Representation}{\texttt{github.com/SheikhMohsin9311/Performance-and-Data-Representation}}
+\end{frame}
 \end{document}

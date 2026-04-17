@@ -1,0 +1,251 @@
+\section{Appendix: Raw Performance Metadata}
+This appendix provides granular hardware performance samples for all 16 evaluated data structures. Samples are selected at high density across the scaling range to illustrate cache-boundary transitions and the onset of TLB exhaustion.
+
+\subsection*{Raw Metrics: AoS}
+\begin{table}[H]
+\centering
+\rowcolors{2}{teal!5}{white}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\rowcolor{teal!20} N & Cycles & IPC & CV\% \\ \midrule
+2389072 & 8542326 & 1.35 & 10.6 \\ 
+4991564 & 18000331 & 1.32 & 14.8 \\ 
+10020322 & 34984541 & 1.38 & 1.6 \\ 
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{Raw Metrics: Array}
+\begin{table}[H]
+\centering
+\rowcolors{2}{teal!5}{white}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\rowcolor{teal!20} N & Cycles & IPC & CV\% \\ \midrule
+2541790 & 7599186 & 1.60 & 10.7 \\ 
+5026359 & 15949234 & 1.58 & 13.6 \\ 
+10000000 & 32232729 & 1.55 & 0.2 \\ 
+\bottomrule
+\end{tabular}
+\end{table}
+
+\clearpage
+\subsection*{Raw Metrics: BST}
+\begin{table}[H]
+\centering
+\rowcolors{2}{teal!5}{white}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\rowcolor{teal!20} N & Cycles & IPC & CV\% \\ \midrule
+200589 & 10621395 & 0.18 & 14.4 \\ 
+498423 & 57578914 & 0.08 & 5.1 \\ 
+1000000 & 80932125 & 0.11 & 4.1 \\ 
+5008000 & 391762365 & 0.11 & 2.2 \\ 
+10015497 & 818174665 & 0.11 & 0.4 \\ 
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{Raw Metrics: BTree}
+\begin{table}[H]
+\centering
+\rowcolors{2}{teal!5}{white}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\rowcolor{teal!20} N & Cycles & IPC & CV\% \\ \midrule
+322749 & 9781815 & 0.36 & 13.9 \\ 
+500318 & 10509160 & 0.48 & 10.7 \\ 
+994069 & 18769044 & 0.46 & 14.3 \\ 
+4978593 & 167775540 & 0.42 & 3.6 \\ 
+10015270 & 249865079 & 0.44 & 3.2 \\ 
+\bottomrule
+\end{tabular}
+\end{table}
+
+\clearpage
+\subsection*{Raw Metrics: CircularBuffer}
+\begin{table}[H]
+\centering
+\rowcolors{2}{teal!5}{white}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\rowcolor{teal!20} N & Cycles & IPC & CV\% \\ \midrule
+2582448 & 7538053 & 1.62 & 13.9 \\ 
+5092805 & 15431581 & 1.58 & 10.5 \\ 
+10000000 & 31103408 & 1.61 & 9.4 \\ 
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{Raw Metrics: Deque}
+\begin{table}[H]
+\centering
+\rowcolors{2}{teal!5}{white}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\rowcolor{teal!20} N & Cycles & IPC & CV\% \\ \midrule
+2381049 & 8636612 & 2.06 & 10.1 \\ 
+4989697 & 16220303 & 2.38 & 10.3 \\ 
+9980537 & 30724445 & 2.53 & 9.2 \\ 
+\bottomrule
+\end{tabular}
+\end{table}
+
+\clearpage
+\subsection*{Raw Metrics: HashMap}
+\begin{table}[H]
+\centering
+\rowcolors{2}{teal!5}{white}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\rowcolor{teal!20} N & Cycles & IPC & CV\% \\ \midrule
+321898 & 10221007 & 0.29 & 13.2 \\ 
+494746 & 11956033 & 0.40 & 14.9 \\ 
+998672 & 42002754 & 0.22 & 5.5 \\ 
+4993194 & 169513723 & 0.27 & 2.8 \\ 
+9987461 & 263641684 & 0.35 & 2.4 \\ 
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{Raw Metrics: Heap}
+\begin{table}[H]
+\centering
+\rowcolors{2}{teal!5}{white}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\rowcolor{teal!20} N & Cycles & IPC & CV\% \\ \midrule
+2696005 & 7665891 & 1.66 & 12.8 \\ 
+5061185 & 15470875 & 1.53 & 11.9 \\ 
+10003862 & 31575453 & 1.57 & 1.4 \\ 
+\bottomrule
+\end{tabular}
+\end{table}
+
+\clearpage
+\subsection*{Raw Metrics: LinkedList}
+\begin{table}[H]
+\centering
+\rowcolors{2}{teal!5}{white}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\rowcolor{teal!20} N & Cycles & IPC & CV\% \\ \midrule
+220132 & 20819358 & 0.05 & 11.9 \\ 
+501298 & 62919845 & 0.04 & 7.1 \\ 
+1000000 & 129189231 & 0.04 & 2.1 \\ 
+5000345 & 872033846 & 0.03 & 4.4 \\ 
+10000000 & 1798697368 & 0.03 & 0.8 \\ 
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{Raw Metrics: RBTree}
+\begin{table}[H]
+\centering
+\rowcolors{2}{teal!5}{white}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\rowcolor{teal!20} N & Cycles & IPC & CV\% \\ \midrule
+166461 & 9325059 & 0.15 & 14.0 \\ 
+499514 & 61296044 & 0.08 & 6.9 \\ 
+1000000 & 82223813 & 0.11 & 4.3 \\ 
+5010545 & 392243215 & 0.11 & 2.0 \\ 
+10000000 & 767601546 & 0.12 & 2.0 \\ 
+\bottomrule
+\end{tabular}
+\end{table}
+
+\clearpage
+\subsection*{Raw Metrics: SkipList}
+\begin{table}[H]
+\centering
+\rowcolors{2}{teal!5}{white}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\rowcolor{teal!20} N & Cycles & IPC & CV\% \\ \midrule
+602749 & 8470769 & 0.35 & 14.7 \\ 
+1003639 & 16624850 & 0.30 & 11.9 \\ 
+4985364 & 68687110 & 0.36 & 3.7 \\ 
+10000000 & 135497797 & 0.37 & 2.0 \\ 
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{Raw Metrics: SlabList}
+\begin{table}[H]
+\centering
+\rowcolors{2}{teal!5}{white}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\rowcolor{teal!20} N & Cycles & IPC & CV\% \\ \midrule
+2496793 & 7717667 & 1.54 & 14.7 \\ 
+5041450 & 15358371 & 1.62 & 14.4 \\ 
+10000000 & 30347847 & 1.60 & 4.0 \\ 
+\bottomrule
+\end{tabular}
+\end{table}
+
+\clearpage
+\subsection*{Raw Metrics: SoA}
+\begin{table}[H]
+\centering
+\rowcolors{2}{teal!5}{white}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\rowcolor{teal!20} N & Cycles & IPC & CV\% \\ \midrule
+2498031 & 7872492 & 1.55 & 5.8 \\ 
+5002816 & 16067272 & 1.50 & 11.8 \\ 
+10000000 & 30114486 & 1.62 & 9.0 \\ 
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{Raw Metrics: Trie}
+\begin{table}[H]
+\centering
+\rowcolors{2}{teal!5}{white}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\rowcolor{teal!20} N & Cycles & IPC & CV\% \\ \midrule
+19057 & 10614025 & 0.27 & 14.4 \\ 
+25131 & 14550535 & 0.26 & 11.0 \\ 
+49979 & 23688675 & 0.30 & 11.6 \\ 
+100000 & 44179339 & 0.30 & 4.2 \\ 
+498374 & 210924485 & 0.27 & 3.3 \\ 
+1000000 & 416247003 & 0.25 & 3.9 \\ 
+4986015 & 2059315440 & 0.19 & 0.8 \\ 
+10012972 & 3931436248 & 0.18 & 0.2 \\ 
+\bottomrule
+\end{tabular}
+\end{table}
+
+\clearpage
+\subsection*{Raw Metrics: Vector}
+\begin{table}[H]
+\centering
+\rowcolors{2}{teal!5}{white}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\rowcolor{teal!20} N & Cycles & IPC & CV\% \\ \midrule
+2340875 & 6776891 & 1.63 & 13.0 \\ 
+5006312 & 15410731 & 1.56 & 11.4 \\ 
+10000000 & 31987418 & 1.56 & 0.2 \\ 
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{Raw Metrics: vEBTree}
+\begin{table}[H]
+\centering
+\rowcolors{2}{teal!5}{white}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\rowcolor{teal!20} N & Cycles & IPC & CV\% \\ \midrule
+2492211 & 7809826 & 1.52 & 10.1 \\ 
+4990721 & 16196045 & 1.55 & 13.6 \\ 
+10012126 & 32382584 & 1.55 & 1.2 \\ 
+\bottomrule
+\end{tabular}
+\end{table}
+
+\clearpage
