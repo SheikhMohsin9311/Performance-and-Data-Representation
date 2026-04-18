@@ -27,7 +27,12 @@
 \setbeamertemplate{navigation symbols}{}
 \setbeamertemplate{headline}{}
 \setbeamertemplate{footline}{
-  \hfill\small\textcolor{MutedGold}{\insertframenumber\,/\,\inserttotalframenumber}\quad\vspace{6pt}
+  \leavevmode%
+  \hbox{%
+  \begin{beamercolorbox}[wd=\paperwidth,ht=2.25ex,dp=1ex,right]{frame number}
+    \small\textcolor{MutedGold}{\insertframenumber\,/\,\inserttotalframenumber}\hspace*{3ex}\vspace*{2ex}
+  \end{beamercolorbox}}%
+  \vskip0pt%
 }
 
 % ── Typography ─────────────────────────────────────────────────────────────
@@ -118,7 +123,7 @@
         \column{0.3\textwidth}
         \centering
         \citepoint{\Huge 6,641}\\
-        \subtle{High-Fidelity\\Datapoints}
+        \subtle{Datapoints}
         
         \column{0.3\textwidth}
         \centering
@@ -129,7 +134,7 @@
     
 \end{frame}
 
-% 2. THE ANALOGY (CORE PREMISE)
+% 4. THE ANALOGY (CORE PREMISE)
 \begin{frame}{The Reality: Big O is Only Half the Story}
     \vspace{1em}
     Most students learn algorithms as a count of "steps." Hardware is different.
@@ -149,7 +154,7 @@
     \textit{Choosing a data structure that "keeps data close" is the secret to speed.}
 \end{frame}
 
-% 3. NEW DATA STRUCTURES
+% 5. NEW DATA STRUCTURES
 \begin{frame}{Meet the Contenders: Beyond the BST}
     How do we organize data when a simple list isn't enough?
     \vspace{1em}
@@ -173,7 +178,7 @@
     {\footnotesize\textit{Measured all 16 contenders across 5 orders of magnitude.}}
 \end{frame}
 
-% 4. THE SPEED RANKING
+% 6. THE SPEED RANKING
 \begin{frame}{Who Wins the Sprint? (N = 41 Million)}
     \begin{columns}[c]
         \column{0.68\textwidth}
@@ -191,14 +196,8 @@
     \end{columns}
 \end{frame}
 
-% 5. THE CACHE CLIFF
-\begin{frame}{Size Matters: The Cache Cliff}
-    \centering
-    \includegraphics[width=0.85\textwidth]{slides/fig_scaling.png}\\[0.5em]
-    {\footnotesize Notice the "step up" in cycles as data outgrows the CPU's internal memory.}
-\end{frame}
 
-% 6. WHY ARRAYS WIN
+% 7. WHY ARRAYS WIN
 \begin{frame}{The Secret Multiplier: Locality}
     \begin{columns}[c]
         \column{0.45\textwidth}
@@ -213,7 +212,7 @@
     \end{columns}
 \end{frame}
 
-% 7. PRACTICAL WISDOM
+% 8. PRACTICAL WISDOM
 \begin{frame}{Practical Lessons}
     \centering
     \vfill
@@ -226,7 +225,7 @@
     \end{itemize}
     \vfill
 \end{frame}
-% 8. Q&A
+% 9. Q&A
 \begin{frame}[plain]
     \centering
     \vfill
@@ -237,7 +236,7 @@
     \vfill
 \end{frame}
 
-% 9. THANK YOU
+% 10. THANK YOU
 \begin{frame}[plain]
     \centering
     \vfill
