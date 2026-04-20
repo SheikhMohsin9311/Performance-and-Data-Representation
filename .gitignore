@@ -1,0 +1,22 @@
+# LaTeX build artifacts
+*.aux
+*.log
+*.nav
+*.out
+*.snm
+*.toc
+*.vrb
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# Compiled binaries
+bin/
+*.o
+
+# Virtual environments
+venv/
+.env
+
+# MacOS files
+.DS_Store
