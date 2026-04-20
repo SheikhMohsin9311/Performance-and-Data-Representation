@@ -33,41 +33,48 @@
 ---
 
 **[CLICK TO SLIDE 5: "Meet the Contenders: Beyond the BST"]**
-*(Time: 1:15 - 1:40)*
+*(Time: 1:15 - 1:35)*
 
 "I didn't just test basic arrays and linked lists. I evaluated advanced structures too. We have SkipLists, which are like express elevators; vEB Trees, which use digital fractals; and B-Trees, the ultimate librarians that store hundreds of items per node specifically to minimize those expensive warehouse trips."
 
 ---
 
-**[CLICK TO SLIDE 6: "Who Wins the Sprint?"]**
-*(Time: 1:40 - 2:05)*
+**[CLICK TO SLIDE 6: "Methodology: The Precision Toolkit"]**
+*(Time: 1:35 - 1:55)*
+
+"To ensure scientific accuracy, we used a precision toolkit. We used `taskset` for core isolation to stop OS noise. We used `asm` and `volatile` keywords as optimization shields—preventing the compiler from deleting or reordering our measurement logic. And we accessed the hardware PMU directly via the `perf` system call for true cycle counts."
+
+---
+
+**[CLICK TO SLIDE 7: "Who Wins the Sprint?"]**
+*(Time: 1:55 - 2:20)*
 
 "So, who wins the sprint? When we look purely at the 'Traversal Bound'—scanning through millions of elements—Arrays crush everything else. They win by 40x against linked structures. But, we have to be honest: this is for reading. Inserting into an array costs O(N) data movement, so it's a trade-off."
 
 ---
 
-**[CLICK TO SLIDE 7: "The Secret Multiplier: Locality"]**
-*(Time: 2:05 - 2:25)*
+**[CLICK TO SLIDE 8: "The Secret Multiplier: Locality"]**
+*(Time: 2:20 - 2:40)*
 
 "Arrays win traversals because of the 'Pointer Tax.' Every time you follow a pointer, you force the CPU to find a completely new, unpredictable address. It's like shopping for groceries by running randomly across the store for every single item instead of just walking down one aisle."
 
 ---
 
-**[CLICK TO SLIDE 8: "Practical Lessons"]**
-*(Time: 2:25 - 2:50)*
+**[CLICK TO SLIDE 9: "Practical Lessons"]**
+*(Time: 2:40 - 3:00)*
 
 "So, what are the practical lessons? First, Contiguity is King for retrieval. Keep your data together. Second, beware the Write Penalty—mutations in contiguous memory are expensive. And third, embrace the B-Tree Compromise: use structures that balance Big-O search efficiency with cache-friendly contiguous blocks."
 
 ---
 
-**[CLICK TO SLIDE 9: Q&A "Any Questions?"]**
-*(Time: 2:50 - 2:55)*
+**[CLICK TO SLIDE 10: Q&A "Any Questions?"]**
+*(Time: 3:00 - 3:10)*
 
-"At the end of the day, algorithms are math, but performance is physics."
+"At the end of the day, algorithms are math, but performance is physics. Any questions?"
 
 ---
 
-**[CLICK TO SLIDE 10: "Thank You"]**
-*(Time: 2:55 - 3:00)*
+**[CLICK TO SLIDE 11: "Thank You"]**
+*(Time: 3:10 - 3:15)*
 
-"Thank you, and I'd be happy to take any questions."
+"Thank you for your time. You can scan the QR code here to explore the full benchmarking suite and the raw performance data on GitHub."

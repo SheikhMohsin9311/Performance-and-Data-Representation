@@ -9,7 +9,22 @@
 \usepackage{tikz}
 \usetikzlibrary{shapes.misc, arrows.meta, positioning, calc}
 \usepackage{fontawesome5}
+\usepackage{listings}
 \hypersetup{hidelinks}
+
+% ── Code Styling ───────────────────────────────────────────────────────────
+\lstset{
+    language=C,
+    backgroundcolor=\color{Carbon},
+    basicstyle=\ttfamily\small\color{Cream},
+    keywordstyle=\color{MutedGold},
+    commentstyle=\color{SlateGrey},
+    stringstyle=\color{MutedGold},
+    showstringspaces=false,
+    breaklines=true,
+    frame=none,
+    xleftmargin=1em
+}
 
 % ── Color Palette (Carbon & Cream) ────────────────────────────────────────
 \definecolor{Carbon}{HTML}{0a0a0a}       % Near-black background
@@ -127,7 +142,7 @@
         
         \column{0.3\textwidth}
         \centering
-        \citepoint{\Huge 722.2B}\\
+        \citepoint{\Huge 730B}\\
         \subtle{Memory Elements\\Analyzed}
     \end{columns}
     \vfill
@@ -176,6 +191,36 @@
     \end{columns}
     \vfill
     {\footnotesize\textit{Measured all 16 contenders across 5 orders of magnitude.}}
+\end{frame}
+
+% 5.5 METHODOLOGY: HIGH-FIDELITY MEASUREMENT
+\begin{frame}[fragile]{Methodology: The Precision Toolkit}
+    \vspace{1em}
+    \begin{columns}[T]
+        \column{0.55\textwidth}
+        \begin{lstlisting}
+// CPU Pinning
+taskset -c 1 ./benchmark
+
+// Memory Barrier
+__asm__ __volatile__("" ::: "memory");
+
+// Hardware PMU Access
+syscall(SYS_perf_event_open, ...);
+
+// Optimization Shield
+volatile long long sink = 0;
+        \end{lstlisting}
+
+        \column{0.4\textwidth}
+        \citepoint{The Scientific Rigor:}\\
+        \vspace{1em}
+        \begin{itemize}
+            \item \emphasis{taskset:} Core isolation.
+            \item \emphasis{asm/volatile:} Prevents compiler 'magic'.
+            \item \emphasis{perf:} True cycle counts.
+        \end{itemize}
+    \end{columns}
 \end{frame}
 
 % 6. THE SPEED RANKING
@@ -247,6 +292,21 @@
     \begin{tikzpicture}
         \draw[SlateGrey, line width=0.3pt] (-3,0) -- (3,0);
     \end{tikzpicture}\\[1em]
-    \faGithub\ \ \href{https://github.com/SheikhMohsin9311/Performance-and-Data-Representation}{\texttt{github.com/SheikhMohsin9311/Performance-and-Data-Representation}}
+    
+    \begin{columns}[c]
+        \column{0.6\textwidth}
+        \centering
+        \citepoint{\faGithub}\ \ \href{https://github.com/SheikhMohsin9311/Performance-and-Data-Representation}{\texttt{SheikhMohsin9311/Performance-and-Data-Representation}}
+        
+        \column{0.3\textwidth}
+        \centering
+        \begin{tikzpicture}
+            \node[draw=MutedGold, line width=1pt, inner sep=2pt, rounded corners=1pt] {
+                \includegraphics[width=0.75\textwidth]{slides/repo_qr.png}
+            };
+        \end{tikzpicture}\\
+        \vspace{0.5em}
+        \tiny\subtle{Technical Documentation \& Data}
+    \end{columns}
 \end{frame}
 \end{document}
