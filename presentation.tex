@@ -135,9 +135,9 @@
 \end{frame}
 
 % 4. THE ANALOGY (CORE PREMISE)
-\begin{frame}{The Reality: Big O is Only Half the Story}
+\begin{frame}{The Reality: Locality is a Multiplier on Big-O}
     \vspace{1em}
-    Most students learn algorithms as a count of "steps." Hardware is different.
+    Big-O defines the \textit{curve}. Hardware locality defines the \textit{crossover point}.
     \vspace{0.5em}
     \analogy{Memory Access}{a Coffee Shop vs. a Warehouse}
     \begin{columns}[T]
@@ -151,7 +151,7 @@
     \end{columns}
     \vfill
     \centering
-    \textit{Choosing a data structure that "keeps data close" is the secret to speed.}
+    \textit{For operations with identical complexity, spatial locality dictates the winner.}
 \end{frame}
 
 % 5. NEW DATA STRUCTURES
@@ -186,12 +186,12 @@
         \includegraphics[height=0.75\textheight]{slides/fig_fastest.png}
         
         \column{0.3\textwidth}
-        \citepoint{The Latency Gap}\\
+        \citepoint{The Traversal Bound}\\
         \vfill
         {\small 
-        \emphasis{Arrays} win by 40x.
+        \emphasis{Arrays} win by 40x \textit{during full scans}.
         \vfill
-        \subtle{Linked structures stay in "the warehouse" while the CPU waits.}
+        \subtle{But remember: inserting into an array costs $O(N)$ data movement.}
         }
     \end{columns}
 \end{frame}
@@ -219,9 +219,9 @@
     {\Large\citepoint{Algorithms are Math, but Performance is Physics.}}\\[2.5em]
     
     \begin{itemize}
-        \item[] \citepoint{I.} \emphasis{Contiguity is King:} Keep your data together in memory.
-        \item[] \citepoint{II.} \emphasis{Complexity $\neq$ Speed:} A smart algorithm can be slow if it's "messy."
-        \item[] \citepoint{III.} \emphasis{Hardware Harmony:} Think about the machine, not just the code.
+        \item[] \citepoint{I.} \emphasis{Contiguity is King (for Retrieval):} Locality maximizes throughput.
+        \item[] \citepoint{II.} \emphasis{The Write Penalty:} Beware $O(N)$ data movement during mutations.
+        \item[] \citepoint{III.} \emphasis{The B-Tree Compromise:} Balance Big-O efficiency with cache contiguity.
     \end{itemize}
     \vfill
 \end{frame}
