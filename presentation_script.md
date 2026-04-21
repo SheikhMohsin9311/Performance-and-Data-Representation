@@ -21,7 +21,7 @@
 **[CLICK TO SLIDE 3: "The Scale of the Project"]**
 *(Time: 0:35 - 0:50)*
 
-"To prove this, I built a high-fidelity C11 benchmarking suite. I tested 16 different data structure families, generating over 6,600 datapoints, and analyzed 722 billion memory elements. I used direct hardware performance counters to see exactly where the pipeline starves."
+"To prove this, I built a high-fidelity C11 benchmarking suite. I tested 16 different data structure families, generating over 6,600 datapoints, and analyzed 730 billion memory elements. I used direct hardware performance counters to see exactly where the pipeline starves."
 
 ---
 
@@ -49,7 +49,7 @@
 **[CLICK TO SLIDE 7: "Who Wins the Sprint?"]**
 *(Time: 1:55 - 2:20)*
 
-"So, who wins the sprint? When we look purely at the 'Traversal Bound'—scanning through millions of elements—Arrays crush everything else. They win by 40x against linked structures. But, we have to be honest: this is for reading. Inserting into an array costs O(N) data movement, so it's a trade-off."
+"So, who wins the sprint? When we look purely at the 'Traversal Bound'—scanning through 41 million elements—Arrays crush everything else. They win by 40x against linked structures. But, we have to be honest: this is for reading. Inserting into an array costs O(N) data movement, so it's a trade-off."
 
 ---
 
@@ -67,14 +67,21 @@
 
 ---
 
-**[CLICK TO SLIDE 10: Q&A "Any Questions?"]**
-*(Time: 3:00 - 3:10)*
+**[CLICK TO SLIDE 10: "The Big Three Bottlenecks"]**
+*(Time: 3:00 - 3:20)*
+
+"Finally, I want to leave you with the 'Big Three' problems I identified. First, the Cache Wall—cycles track LLC misses with a 0.9 correlation. Second, the Translation Wall—where scattered memory causes multi-cycle page table walks. And third, the Structural Tax—where random access effectively sabotages the hardware prefetcher, causing a 400-fold increase in latency."
+
+---
+
+**[CLICK TO SLIDE 11: Q&A "Any Questions?"]**
+*(Time: 3:20 - 3:30)*
 
 "At the end of the day, algorithms are math, but performance is physics. Any questions?"
 
 ---
 
-**[CLICK TO SLIDE 11: "Thank You"]**
-*(Time: 3:10 - 3:15)*
+**[CLICK TO SLIDE 12: "Thank You"]**
+*(Time: 3:30 - 3:40)*
 
 "Thank you for your time. You can scan the QR code here to explore the full benchmarking suite and the raw performance data on GitHub."

@@ -35,7 +35,7 @@ COLORS = {
 
 os.makedirs("deep_dive_figures", exist_ok=True)
 
-def load_and_sanitize(path="masterresultsOvernight.csv"):
+def load_and_sanitize(path="master.csv"):
     df = pd.read_csv(path)
     # Global Numeric Coercion
     metric_cols = [
@@ -123,10 +123,14 @@ def plot_insight_e(df):
     plt.close()
 
 def plot_insight_f(df):
-    high_n = df[df["N"] > 10000000].groupby("data_structure")["cycles_per_n"].mean().sort_values()
+    high_n_df = df[df["N"] >= 10000000]
+    if high_n_df.empty:
+        print("Skipping Insight F: No data for N >= 10M")
+        return
+    high_n = high_n_df.groupby("data_structure")["cycles_per_n"].mean().sort_values()
     plt.figure(figsize=(10, 8))
     high_n.plot(kind='barh', color=[COLORS.get(x, '#8b949e') for x in high_n.index])
-    plt.title("High-N Efficiency Leaderboard (N > 10M)")
+    plt.title("High-N Efficiency Leaderboard (N >= 10M)")
     plt.xlabel("Average Cycles per Element")
     plt.tight_layout()
     for fmt in FORMATS:

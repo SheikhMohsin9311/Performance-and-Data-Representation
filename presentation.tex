@@ -270,6 +270,30 @@ volatile long long sink = 0;
     \end{itemize}
     \vfill
 \end{frame}
+
+% 8.5 THE IDENTIFIED PROBLEMS
+\begin{frame}{The Big Three Bottlenecks}
+    \vspace{1.5em}
+    \begin{columns}[T]
+        \column{0.48\textwidth}
+        \citepoint{1. The Cache Wall}\\
+        \emphasis{0.90 Correlation}\\
+        {\footnotesize Cycles track LLC misses perfectly. If you miss, the CPU stops for 300 cycles.}
+        \vspace{1em}
+        
+        \citepoint{2. The Translation Wall}\\
+        \emphasis{Page Table Overload}\\
+        {\footnotesize Pointer structures trigger TLB misses, forcing multi-cycle translations.}
+
+        \column{0.48\textwidth}
+        \citepoint{3. The Structural Tax}\\
+        \emphasis{402x Latency Delta}\\
+        {\footnotesize Random memory access kills the hardware prefetcher. $O(\log N)$ pointers lose to $O(N)$ scanning.}
+        \vspace{1em}
+        
+        \analogy{Bottlenecks}{Traffic Jams vs. Open Highways}
+    \end{columns}
+\end{frame}
 % 9. Q&A
 \begin{frame}[plain]
     \centering
