@@ -1,4 +1,23 @@
-Datapoints: 6,757
-Structures: 16
-N Range: 19,057 to 41,344,414
-Processed: 727.6 Billion Elements
+--- 1. Hardware Bottleneck Correlations ---
+cycles_per_n     1.000000
+llc_miss_rate    0.986074
+tlb_miss_rate    0.765850
+ipc             -0.220454
+
+--- 2. The Structural Tax (Pointer vs. Contiguous) ---
+is_contiguous
+Contiguous        5.62 cycles/elem
+Pointer-based    85.49 cycles/elem
+Multiplier: 15.20x
+
+--- 3. Top Performers (at High N) ---
+1. Deque: 3.60 cycles/elem
+2. SlabList: 3.93 cycles/elem
+3. Heap: 3.93 cycles/elem
+
+--- 4. TLB Wall Threshold (N where TLB misses > 0.1) ---
+Trie: 21,760
+RBTree: 155,813
+LinkedList: 234,614
+BST: 260,751
+BTree: 279,418

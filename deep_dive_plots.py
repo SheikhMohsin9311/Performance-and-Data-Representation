@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -35,8 +36,25 @@ COLORS = {
 
 os.makedirs("deep_dive_figures", exist_ok=True)
 
-def load_and_sanitize(path="master.csv"):
+def load_and_sanitize(path="last.csv"):
+    if not os.path.exists(path):
+        print(f"Error: {path} not found.")
+        sys.exit(1)
     df = pd.read_csv(path)
+
+    # Map new CSV schema to internal script names
+    rename_map = {
+        "DataStructure": "data_structure",
+        "med_cyc": "median_cycles",
+        "med_ins": "median_instructions",
+        "med_cm": "median_cache_misses",
+        "med_br": "median_branches",
+        "med_brm": "median_branch_misses",
+        "med_l1": "median_l1_misses",
+        "med_tlb": "median_tlb_misses"
+    }
+    df = df.rename(columns=rename_map)
+
     # Global Numeric Coercion
     metric_cols = [
         "N", "runs", "median_cycles", "median_instructions", "ipc",
@@ -187,9 +205,58 @@ def plot_insight_j(df):
         plt.savefig(f"deep_dive_figures/insight_j_correlation.{fmt}", dpi=DPI if fmt == 'png' else None)
     plt.close()
 
+def plot_slides(df):
+    os.makedirs("slides", exist_ok=True)
+    
+    # 1. fig_fastest.png (Leaderboard at high N)
+    high_n_df = df[df["N"] >= 1000000]
+    if not high_n_df.empty:
+        high_n = high_n_df.groupby("data_structure")["cycles_per_n"].median().sort_values()
+        plt.figure(figsize=(10, 8))
+        high_n.plot(kind='barh', color=[COLORS.get(x, '#8b949e') for x in high_n.index])
+        plt.title("The Speed Leaderboard (High N)")
+        plt.xlabel("Average Cycles per Element")
+        plt.tight_layout()
+        plt.savefig("slides/fig_fastest.png", dpi=DPI)
+        plt.close()
+
+    # 2. fig_scaling.png (Insight A)
+    plt.figure(figsize=(10, 6))
+    sns.lineplot(data=df, x="N", y="cycles_per_n", hue="data_structure", palette=COLORS, lw=2)
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.title("Scaling Efficiency: The Absolute Latency Frontier")
+    plt.ylabel("Cycles per Element")
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.tight_layout()
+    plt.savefig("slides/fig_scaling.png", dpi=DPI)
+    plt.close()
+
+    # 3. fig_scatter_misses_vs_speed.png (Insight B)
+    plt.figure(figsize=(10, 6))
+    subset = df[df["data_structure"].isin(["Vector", "LinkedList", "BTree", "vEBTree", "HashMap", "BST"])]
+    sns.scatterplot(data=subset, x="llc_miss_rate", y="cycles_per_n", hue="data_structure", palette=COLORS, alpha=0.6)
+    plt.title("Memory Wall: Latency vs. LLC Pressure")
+    plt.xlabel("LLC Misses per Element")
+    plt.ylabel("Cycles per Element")
+    plt.tight_layout()
+    plt.savefig("slides/fig_scatter_misses_vs_speed.png", dpi=DPI)
+    plt.close()
+
+    # 4. fig_why_arrays.png (Insight D)
+    plt.figure(figsize=(8, 6))
+    sns.boxplot(data=df, x="is_contiguous", y="cycles_per_n", palette="Set2")
+    plt.yscale("log")
+    plt.title("The Spatial Multiplier: Contiguous vs. Pointer-based")
+    plt.ylabel("Cycles per Element (Log Scale)")
+    plt.tight_layout()
+    plt.savefig("slides/fig_why_arrays.png", dpi=DPI)
+    plt.close()
+
 if __name__ == "__main__":
-    df = load_and_sanitize()
-    print(f"Analyzing {len(df)} sanitized samples...")
+    csv_path = sys.argv[1] if len(sys.argv) > 1 else "last.csv"
+    df = load_and_sanitize(csv_path)
+    print(f"Analyzing {len(df)} sanitized samples from {csv_path}...")
     plot_insight_a(df)
     plot_insight_b(df)
     plot_insight_c(df)
@@ -200,4 +267,5 @@ if __name__ == "__main__":
     plot_insight_h(df)
     plot_insight_i(df)
     plot_insight_j(df)
-    print("PDF figures generated in deep_dive_figures/")
+    plot_slides(df)
+    print("PDF figures generated in deep_dive_figures/ and slides/")
