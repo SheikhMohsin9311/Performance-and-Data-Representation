@@ -25,28 +25,42 @@ typedef struct {
 /* ── Aggregated statistics across all samples ───────────────────────────── */
 typedef struct {
     uint64_t median_cycles;
+    uint64_t avg_cycles;
     uint64_t min_cycles;
     double   stddev_cycles;   /* sample standard deviation of cycles */
     double   ci95_cycles;     /* 95% CI half-width: 1.96*stddev/sqrt(n) */
     uint64_t median_instructions;
+    uint64_t avg_instructions;
     uint64_t median_cache_misses;
+    uint64_t avg_cache_misses;
     uint64_t median_branches;
+    uint64_t avg_branches;
     uint64_t median_branch_misses;
+    uint64_t avg_branch_misses;
     uint64_t median_l1_misses;
+    uint64_t avg_l1_misses;
     uint64_t median_tlb_misses;
+    uint64_t avg_tlb_misses;
     double   cv_pct;    /* coefficient of variation for cycles (%) */
 } perf_stats_t;
 
 /* ── METRICS3 output helper macro ────────────────────────────────────────── */
-/* Columns: tag,N,cycles,instructions,ipc,cache_misses,branches,
-            branch_misses,l1_misses,tlb_misses,cv_pct,stddev_cycles,ci95_cycles */
+/* Columns: tag,N,
+            med_cyc,avg_cyc,med_ins,avg_ins,ipc,
+            med_cm,avg_cm,med_br,avg_br,
+            med_brm,avg_brm,med_l1,avg_l1,med_tlb,avg_tlb,
+            cv_pct,stddev_cycles,ci95_cycles */
 #define PRINT_METRICS3(N, stats, ipc)                                              \
-    printf("METRICS3,%d,%lu,%lu,%.2f,%lu,%lu,%lu,%lu,%lu,%.1f,%.0f,%.0f\n",       \
+    printf("METRICS3,%d,%lu,%lu,%lu,%lu,%.2f,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%.1f,%.0f,%.0f\n", \
            (int)(N),                                                               \
-           (stats).median_cycles, (stats).median_instructions, (ipc),              \
-           (stats).median_cache_misses, (stats).median_branches,                   \
-           (stats).median_branch_misses, (stats).median_l1_misses,                 \
-           (stats).median_tlb_misses, (stats).cv_pct,                             \
+           (stats).median_cycles, (stats).avg_cycles,                              \
+           (stats).median_instructions, (stats).avg_instructions, (ipc),           \
+           (stats).median_cache_misses, (stats).avg_cache_misses,                  \
+           (stats).median_branches, (stats).avg_branches,                          \
+           (stats).median_branch_misses, (stats).avg_branch_misses,                \
+           (stats).median_l1_misses, (stats).avg_l1_misses,                        \
+           (stats).median_tlb_misses, (stats).avg_tlb_misses,                       \
+           (stats).cv_pct,                                                         \
            (stats).stddev_cycles, (stats).ci95_cycles)
 
 /* ── Open a single perf counter, return fd or -1 on failure ─────────────── */
@@ -121,6 +135,8 @@ static inline void compute_perf_stats(perf_sample_t* samples, int n,
     uint64_t* l1  = (uint64_t*)malloc(n * sizeof(uint64_t));
     uint64_t* tlb = (uint64_t*)malloc(n * sizeof(uint64_t));
 
+    uint64_t sum_cyc = 0, sum_ins = 0, sum_cm = 0, sum_br = 0, sum_brm = 0, sum_l1 = 0, sum_tlb = 0;
+
     for (int i = 0; i < n; i++) {
         cyc[i] = samples[i].cycles;
         ins[i] = samples[i].instructions;
@@ -129,7 +145,23 @@ static inline void compute_perf_stats(perf_sample_t* samples, int n,
         brm[i] = samples[i].branch_misses;
         l1[i]  = samples[i].l1_misses;
         tlb[i] = samples[i].tlb_misses;
+
+        sum_cyc += cyc[i];
+        sum_ins += ins[i];
+        sum_cm  += cm[i];
+        sum_br  += br[i];
+        sum_brm += brm[i];
+        sum_l1  += l1[i];
+        sum_tlb += tlb[i];
     }
+
+    out->avg_cycles       = sum_cyc / n;
+    out->avg_instructions = sum_ins / n;
+    out->avg_cache_misses = sum_cm / n;
+    out->avg_branches     = sum_br / n;
+    out->avg_branch_misses= sum_brm / n;
+    out->avg_l1_misses    = sum_l1 / n;
+    out->avg_tlb_misses   = sum_tlb / n;
 
     /* Sort cycles to compute median and min */
     qsort(cyc, n, sizeof(uint64_t), _cmp_u64);

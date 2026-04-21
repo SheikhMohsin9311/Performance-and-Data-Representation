@@ -19,10 +19,10 @@ OUTPUT="deep_scaling_results_$(date +%s).csv"
 # CONFIGURATION: REPEAT COUNTS & CORE PINNING
 # ==========================================
 CORE_ID=1               # Pin all benchmarks to this CPU core
-RUNS_LARGE=3            # N >= 10M
-RUNS_MEDIUM=20          # N >= 1M
-RUNS_SMALL=200          # N >= 100K
-RUNS_TINY=1000          # N < 100K — many reps to overcome os noise at tiny sizes
+RUNS_LARGE=2            # N >= 10M
+RUNS_MEDIUM=5          # N >= 1M
+RUNS_SMALL=20          # N >= 100K
+RUNS_TINY=50          # N < 100K — many reps to overcome os noise at tiny sizes
 # Rows where median_cycles < this will be flagged (unreliable measurement)
 MIN_CYCLES_WARN=50000
 # ==========================================
@@ -50,7 +50,7 @@ echo "  RUNS (S/M/L): ${RUNS_SMALL}/${RUNS_MEDIUM}/${RUNS_LARGE}"
 echo "=========================="
 
 # Write CSV header
-echo "data_structure,N,runs,median_cycles,median_instructions,ipc,median_cache_misses,median_branches,median_branch_misses,median_l1_misses,median_tlb_misses,cv_pct,stddev_cycles,ci95_cycles" > "$OUTPUT"
+echo "data_structure,N,runs,med_cyc,avg_cyc,med_ins,avg_ins,ipc,med_cm,avg_cm,med_br,avg_br,med_brm,avg_brm,med_l1,avg_l1,med_tlb,avg_tlb,cv_pct,stddev_cycles,ci95_cycles" > "$OUTPUT"
 
 # All 16 Data Structures
 declare -a ENTRIES=(
@@ -76,7 +76,7 @@ declare -a ENTRIES=(
 # MASTER ARCHIVE CONFIGURATION
 # ==========================================
 MASTER_ARCHIVE="${MASTER_ARCHIVE:-masterresultsOvernight.csv}"
-CSV_HEADER="data_structure,N,runs,median_cycles,median_instructions,ipc,median_cache_misses,median_branches,median_branch_misses,median_l1_misses,median_tlb_misses,cv_pct,stddev_cycles,ci95_cycles"
+CSV_HEADER="data_structure,N,runs,med_cyc,avg_cyc,med_ins,avg_ins,ipc,med_cm,avg_cm,med_br,avg_br,med_brm,avg_brm,med_l1,avg_l1,med_tlb,avg_tlb,cv_pct,stddev_cycles,ci95_cycles"
 
 if [ ! -f "$MASTER_ARCHIVE" ]; then
     echo "$CSV_HEADER" > "$MASTER_ARCHIVE"
@@ -168,14 +168,18 @@ for (( d_idx=0; d_idx<${#DECADES[@]}; d_idx++ )); do
             [ -z "$metrics_line" ] && continue
 
             perf_data="${metrics_line#METRICS3,}"
-            IFS=',' read -r N_val med_cyc med_ins ipc med_cm med_br med_brm med_l1 med_tlb cv_pct stddev ci95 <<< "$perf_data"
+            IFS=',' read -r N_val med_cyc avg_cyc med_ins avg_ins ipc med_cm avg_cm med_br avg_br med_brm avg_brm med_l1 avg_l1 med_tlb avg_tlb cv_pct stddev ci95 <<< "$perf_data"
 
-            row=$(printf "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s" \
+            row=$(printf "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s" \
                 "$label" "$N" "$RUNS" \
-                "${med_cyc:-0}" "${med_ins:-0}" "${ipc:-0.00}" \
-                "${med_cm:-0}"  "${med_br:-0}"  "${med_brm:-0}" \
-                "${med_l1:-0}"  "${med_tlb:-0}" "${cv_pct:-0.0}" \
-                "${stddev:-0}"  "${ci95:-0}")
+                "${med_cyc:-0}" "${avg_cyc:-0}" \
+                "${med_ins:-0}" "${avg_ins:-0}" "${ipc:-0.00}" \
+                "${med_cm:-0}"  "${avg_cm:-0}" \
+                "${med_br:-0}"  "${avg_br:-0}" \
+                "${med_brm:-0}" "${avg_brm:-0}" \
+                "${med_l1:-0}"  "${avg_l1:-0}" \
+                "${med_tlb:-0}" "${avg_tlb:-0}" \
+                "${cv_pct:-0.0}" "${stddev:-0}" "${ci95:-0}")
 
             echo "$row" >> "$OUTPUT"
             echo "$row" >> "$MASTER_ARCHIVE"

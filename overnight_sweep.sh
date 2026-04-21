@@ -2,7 +2,7 @@
 # overnight_sweep.sh — Persistent wrapper for massive data collection
 
 TARGET_ROWS=100000
-ARCHIVE="masterresultsOvernight.csv"
+ARCHIVE="last.csv"
 
 echo "=== Overnight Massive Sweep Starting ==="
 echo "Targeting $TARGET_ROWS rows in $ARCHIVE"
