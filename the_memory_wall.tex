@@ -240,6 +240,7 @@ Several limitations must be acknowledged:
     \item \textbf{Prefetcher variability:} different CPUs implement prefetchers differently, which can reshape contiguous-structure performance.
     \item \textbf{Allocator behavior:} despite shuffling, allocation patterns can still influence caching for certain structures.
     \item \textbf{Operating system noise:} despite core pinning, background processes and interrupts can influence counters.
+    \item \textbf{Statistical Dispersion:} Significant deviations between mean and median cycle counts were observed at various scales. These tail-latency events (likely caused by hardware interrupts or OS scheduling) suggest that while the median represents the typical throughput, the mean captures the non-deterministic overhead of the modern execution environment.
 \end{itemize}
 
 \section{Reproducibility Checklist}

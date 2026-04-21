@@ -23,7 +23,14 @@ Once a data structure exceeds the 32MB L3 boundary, hardware locality dominates.
 ## ⚠️ Scope and Limitations: The Traversal Bound
 This suite explicitly measures the **Retrieval/Traversal Bound** of these structures by performing $O(N)$ full-scale aggregations. 
 
-While Contiguous structures (like Arrays) win by up to 40x in pure traversal due to spatial locality, it is critical to acknowledge that pointer-based structures (BST, LinkedList) are designed for dynamic $O(\log N)$ searches and $O(1)$ mutations. The massive data-movement penalty ($O(N)$ `memmove`) required to insert into the middle of a contiguous array is not captured in this traversal-focused benchmark. Therefore, these results highlight the extreme penalty of pointer-chasing during reads, but must be balanced against the mutation costs of contiguous memory in practice.
+While Contiguous structures (like Arrays) win by up to 40x in pure traversal due to spatial locality, it is critical to acknowledge that pointer-based structures (BST, LinkedList) are designed for dynamic $O(\log N)$ searches and $O(1)$ mutations. The massive data-movement penalty ($O(N)$ `memmove`) required to insert into the middle of a contiguous array is not captured in this traversal-focused benchmark. 
+
+Furthermore, we observe significant **statistical deviations between mean and median cycles** at certain scales. This is primarily due to:
+*   **Context Switch Noise:** Even with core pinning, OS background tasks and hardware interrupts can induce high-latency outliers.
+*   **Cold-start/Thermal Throttling:** Long sweeps can lead to slight frequency fluctuations despite locking the performance governor.
+*   **Measurement Jitter:** Hardware PMU counters can exhibit non-deterministic behavior across different runs.
+Because of these tail-latency events, we prioritize **Median** metrics for stability, though the Mean often reflects the real-world "jittery" performance an application would experience.
+
 
 ---
 
