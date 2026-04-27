@@ -112,6 +112,7 @@ static void test_stop_counters_invalid_fds(void) {
 }
 
 static void test_open_perf_counter_invalid_type(void) {
+    /* Invalid perf event type to force failure */
     int fd = open_perf_counter(0xFFFFFFFFu, 0);
     if (fd != -1) {
         close(fd);
