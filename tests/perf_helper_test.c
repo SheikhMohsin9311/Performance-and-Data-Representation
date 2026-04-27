@@ -114,8 +114,8 @@ static void test_stop_counters_invalid_fds(void) {
 
 static void test_open_perf_counter_invalid_type(void) {
     /* Invalid perf event type to force failure */
-    static const uint32_t invalid_type = 0xFFFFFFFFu;
-    int fd = open_perf_counter(invalid_type, 0);
+    static const uint32_t INVALID_PERF_EVENT_TYPE = 0xFFFFFFFFu;
+    int fd = open_perf_counter(INVALID_PERF_EVENT_TYPE, 0);
     if (fd != -1) {
         close(fd);
         fprintf(stderr, "Expected invalid perf type to fail\n");
