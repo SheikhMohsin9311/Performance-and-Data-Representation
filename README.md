@@ -83,6 +83,15 @@ make clean && make
 make MODE=debug
 ```
 
+### ✅ Tests
+```bash
+# Unit tests for perf_helper utilities
+make test
+
+# Unit tests + smoke test sweep for each benchmark binary
+make check
+```
+
 ### 🚀 Execute Sweep
 Run the full performance spectrum ($10^3 \rightarrow 10^8$ elements):
 ```bash
