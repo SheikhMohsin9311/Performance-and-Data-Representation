@@ -76,5 +76,6 @@ help:
 	@echo "  $(GREEN)make$(RESET)          - Build all data structures in Release mode (O3)"
 	@echo "  $(GREEN)make MODE=debug$(RESET) - Build in Debug mode (O0, -g)"
 	@echo "  $(GREEN)make clean$(RESET)     - Remove all binaries and the bin/ directory"
+	@echo "  $(GREEN)make check$(RESET)     - Run unit tests and smoke test sweep"
 	@echo "  $(GREEN)make test$(RESET)      - Run perf_helper unit tests"
 	@echo "  $(GREEN)make help$(RESET)      - Show this help message"
