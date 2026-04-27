@@ -111,10 +111,12 @@ static void test_stop_counters_invalid_fds(void) {
     assert_u64_eq(sample.instructions, 0, "stop counters instructions");
 }
 
-static void test_open_perf_counter_invocation(void) {
-    int fd = open_perf_counter(PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES);
+static void test_open_perf_counter_invalid_type(void) {
+    int fd = open_perf_counter(0xFFFFFFFFu, 0);
     if (fd != -1) {
         close(fd);
+        fprintf(stderr, "Expected invalid perf type to fail\n");
+        exit(1);
     }
 }
 
@@ -123,7 +125,7 @@ int main(void) {
     test_compute_perf_stats_single();
     test_compute_perf_stats_multiple();
     test_stop_counters_invalid_fds();
-    test_open_perf_counter_invocation();
+    test_open_perf_counter_invalid_type();
 
     printf("perf_helper tests passed\n");
     return 0;
